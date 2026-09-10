@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ride Along Report — Warrior Logistics</title>
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0a;
+    --card:#141414;
+    --card-border:#232323;
+    --chip-off:#1c1c1c;
+    --chip-off-text:#4a4a4a;
+    --accent:#cc0000;
+    --accent-text:#ffffff;
+    --text:#f2f2f2;
+    --muted:#7a7a7a;
+    --muted-2:#4a4a4a;
+    --radius-card:10px;
+    --radius-pill:8px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg); overflow-x:hidden;}
+  body{
+    font-family:'Poppins',sans-serif;
+    color:var(--text);
+    padding-bottom:140px;
+  }
+  #report{
+    max-width:520px;
+    margin:0 auto;
+    padding:28px 16px 40px;
+  }
+
+  /* header */
+  .hazard{
+    height:5px;
+    width:100%;
+    background:var(--accent);
+    border-radius:4px;
+    margin-bottom:24px;
+  }
+  .kicker{
+    font-size:11px;
+    letter-spacing:4px;
+    color:var(--muted);
+    font-weight:600;
+    margin-bottom:6px;
+    text-align:center;
+  }
+  h1.headline{
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    font-size:clamp(20px, 7vw, 44px);
+    line-height:1;
+    margin:0 0 1px;
+    letter-spacing:0.5px;
+    text-align:center;
+    white-space:nowrap;
+    color:var(--accent);
+  }
+  .subline{
+    font-size:13.5px;
+    letter-spacing:0.5px;
+    color:var(--text);
+    font-weight:500;
+    margin-bottom:4px;
+    text-align:center;
+  }
+  .version{
+    color:var(--muted-2);
+    font-size:11px;
+    font-family:monospace;
+    text-align:center;
+  }
+  .rule{
+    height:1px;
+    background:#232323;
+    margin:22px 0;
+    border:none;
+  }
+
+  /* meta block */
+  .meta-row{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-bottom:16px;
+  }
+  .meta-label{
+    font-size:10px;
+    letter-spacing:2px;
+    color:var(--muted);
+    font-weight:600;
+    width:90px;
+    flex-shrink:0;
+  }
+  .meta-input{
+    flex:1;
+    min-width:0;
+    background:transparent;
+    border:none;
+    border-bottom:1px solid #232323;
+    color:var(--text);
+    font-family:'Poppins',sans-serif;
+    font-size:18px;
+    font-weight:500;
+    padding:6px 0;
+    outline:none;
+  }
+  .meta-input::placeholder{ color:#3d3d3d; }
+  .meta-input:focus{ border-bottom-color:var(--accent); }
+
+  select.meta-input{
+    appearance:none;
+    -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23cc0000' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 4px center;
+    padding-right:20px;
+  }
+  select.meta-input option{
+    background:#141414;
+    color:var(--text);
+  }
+
+  .day-toggle{
+    display:flex;
+    gap:8px;
+    flex:1;
+  }
+  .day-btn{
+    flex:1;
+    text-align:center;
+    padding:10px 0;
+    border-radius:var(--radius-pill);
+    background:var(--chip-off);
+    color:var(--chip-off-text);
+    font-weight:700;
+    font-size:14px;
+    border:none;
+    cursor:pointer;
+  }
+  .day-btn.selected{ background:var(--accent); color:#fff; }
+
+  /* section headers */
+  .section-header{
+    margin:30px 0 14px;
+    cursor:pointer;
+    user-select:none;
+    transition:background 0.15s ease, padding 0.15s ease, margin 0.15s ease, border-color 0.15s ease;
+    padding-left:16px;
+  }
+  .section-header.collapsed{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:var(--radius-card);
+    padding:18px;
+    margin:14px 0;
+  }
+  .section-header.collapsed .section-kicker{
+    margin-bottom:0;
+  }
+  .section-header-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .section-kicker{
+    font-size:14px;
+    letter-spacing:3px;
+    color:var(--accent);
+    font-weight:700;
+    margin-bottom:0;
+  }
+  .section-chevron{
+    color:var(--accent);
+    font-size:12px;
+    transition:transform 0.2s ease;
+    flex-shrink:0;
+  }
+  .section-chevron.collapsed{
+    transform:rotate(180deg);
+  }
+  .section-body{
+    overflow:hidden;
+  }
+  .section-body.collapsed{
+    display:none;
+  }
+  .section-note{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:-4px;
+  }
+
+  /* question cards */
+  .qcard{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:var(--radius-card);
+    padding:16px 16px;
+    margin-bottom:10px;
+  }
+  .qtitle{
+    font-size:15px;
+    font-weight:700;
+    margin-bottom:4px;
+    line-height:1.3;
+    text-transform:uppercase;
+  }
+  .qsubtext{
+    font-size:11.5px;
+    color:#8a8a8a;
+    line-height:1.5;
+    margin-bottom:12px;
+  }
+  .options{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:12px;
+  }
+  .pill{
+    border:none;
+    border-radius:var(--radius-pill);
+    padding:9px 16px;
+    font-family:'Poppins',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    background:var(--chip-off);
+    color:var(--chip-off-text);
+    cursor:pointer;
+    transition:background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    text-transform:uppercase;
+  }
+  .pill.selected{
+    background:var(--accent);
+    color:var(--accent-text);
+  }
+  .pill:active{ transform:scale(0.97); }
+
+  .slider-wrap{
+    position:relative;
+  }
+  .custom-slider{
+    position:relative;
+    height:24px;
+    display:flex;
+    align-items:center;
+    touch-action:none;
+    cursor:pointer;
+  }
+  .custom-slider-track{
+    position:relative;
+    width:100%;
+    height:6px;
+    border-radius:4px;
+    background:#232323;
+  }
+  .custom-slider-fill{
+    position:absolute;
+    top:0;
+    left:0;
+    height:6px;
+    border-radius:4px;
+    background:var(--accent);
+    width:0%;
+  }
+  .custom-slider-thumb{
+    position:absolute;
+    top:50%;
+    left:0%;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    background:var(--accent);
+    border:2px solid #fff;
+    transform:translate(-50%,-50%);
+  }
+  .custom-slider.disabled{
+    pointer-events:none;
+    opacity:0.35;
+  }
+  .custom-slider.disabled .custom-slider-fill{ background:#555; }
+  .custom-slider.disabled .custom-slider-thumb{ background:#555; border-color:#333; }
+  .custom-slider.untouched .custom-slider-fill{ background:#555; }
+  .custom-slider.untouched .custom-slider-thumb{ background:#555; border-color:#333; }
+  .slider-score{
+    color:var(--accent);
+    font-weight:700;
+    font-size:12px;
+    flex-shrink:0;
+    padding-left:10px;
+  }
+  .slider-score.inactive{
+    color:var(--muted-2);
+  }
+
+  /* rating slider (per coverage item) */
+  .rate-slider{
+    width:100%;
+    -webkit-appearance:none;
+    appearance:none;
+    height:6px;
+    border-radius:4px;
+    background:#232323;
+    outline:none;
+    display:block;
+  }
+  .rate-slider::-webkit-slider-runnable-track{
+    height:6px;
+    border-radius:4px;
+    background:transparent;
+  }
+  .rate-slider::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    background:var(--accent);
+    cursor:pointer;
+    border:2px solid #fff;
+    margin-top:-7px;
+  }
+  .rate-slider::-moz-range-track{
+    height:6px;
+    border-radius:4px;
+    background:#232323;
+  }
+  .rate-slider::-moz-range-thumb{
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    background:var(--accent);
+    cursor:pointer;
+    border:2px solid #fff;
+  }
+  .rate-slider:disabled{
+    opacity:0.35;
+  }
+  .rate-slider:disabled::-webkit-slider-thumb{
+    background:#555;
+    border-color:#333;
+  }
+  .rate-slider:disabled::-moz-range-thumb{
+    background:#555;
+    border-color:#333;
+  }
+  .slider-labels{
+    position:relative;
+    height:14px;
+    font-size:10px;
+    color:var(--muted-2);
+    margin-top:8px;
+    letter-spacing:0.5px;
+  }
+  .slider-labels span{
+    position:absolute;
+    top:0;
+    white-space:nowrap;
+    transform:translateX(-50%);
+  }
+
+  /* scale 1-10 (driving ability) — single line, grey until selected */
+  .scale-row{
+    display:flex;
+    flex-wrap:nowrap;
+    gap:5px;
+    width:100%;
+  }
+  .scale-btn{
+    flex:1 1 0;
+    min-width:0;
+    aspect-ratio:1/1;
+    border-radius:50%;
+    border:2px solid transparent;
+    background:var(--chip-off);
+    color:var(--chip-off-text);
+    font-weight:700;
+    font-size:12px;
+    padding:0;
+    cursor:pointer;
+    transition:background 0.15s ease, color 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+  }
+  .scale-btn.selected{
+    color:#fff;
+    border-color:#fff;
+    transform:scale(1.06);
+  }
+  .scale-labels{
+    display:flex;
+    justify-content:space-between;
+    font-size:10px;
+    color:var(--muted-2);
+    margin-top:8px;
+    letter-spacing:0.5px;
+  }
+
+  /* star rating — fills full width of card */
+  .star-row{
+    display:flex;
+    justify-content:space-between;
+    gap:2px;
+    margin:12px 0 4px;
+    width:100%;
+  }
+  .star-btn{
+    flex:1 1 0;
+    min-width:0;
+    background:none;
+    border:none;
+    font-size:22px;
+    line-height:1;
+    color:#2a2a2a;
+    cursor:pointer;
+    padding:0;
+    text-align:center;
+    transition:color 0.15s ease, transform 0.1s ease;
+  }
+  .star-btn.filled{ color:var(--accent); }
+  .star-btn:active{ transform:scale(0.9); }
+
+  /* freetext cards */
+  .qcard textarea{
+    width:100%;
+    min-height:80px;
+    background:#0f0f0f;
+    border:1px solid #262626;
+    border-radius:var(--radius-card);
+    color:var(--text);
+    font-family:'Poppins',sans-serif;
+    font-size:14px;
+    padding:12px;
+    resize:vertical;
+    outline:none;
+    line-height:1.5;
+  }
+  .qcard textarea::placeholder{ color:#4a4a4a; }
+  .qcard textarea:focus{ border-color:var(--accent); }
+
+  .footer-ts{
+    text-align:center;
+    color:var(--muted-2);
+    font-size:11px;
+    font-family:monospace;
+    margin-top:26px;
+  }
+
+  /* send bar */
+  .sendbar{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    background:linear-gradient(180deg, rgba(10,10,10,0) 0%, #0a0a0a 30%);
+    padding:26px 16px 22px;
+    display:flex;
+    justify-content:center;
+  }
+  .send-btn{
+    width:100%;
+    max-width:480px;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:var(--radius-pill);
+    padding:16px;
+    font-family:'Poppins',sans-serif;
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    cursor:pointer;
+  }
+  .send-btn:active{ opacity:0.85; }
+  .send-btn:disabled{ opacity:0.5; }
+</style>
+</head>
+<body>
+
+<div id="report">
+  <div class="hazard"></div>
+  <div class="kicker">RIDE ALONG ASSESSMENT</div>
+  <h1 class="headline">WARRIOR WATCH</h1>
+  <div class="subline">HONEST FEEDBACK BUILDS STRONGER DRIVERS</div>
+
+  <hr class="rule">
+
+  <div class="meta-row">
+    <div class="meta-label">SITE</div>
+    <select class="meta-input" id="siteField">
+      <option value="" disabled selected>Select site</option>
+      <option value="DLS4">DLS4 — Wakefield</option>
+      <option value="DXS1">DXS1 — Sheffield</option>
+      <option value="DXG2">DXG2 — Glasgow</option>
+      <option value="HSA7">HSA7 — Knottingley</option>
+    </select>
+  </div>
+  <div class="meta-row">
+    <div class="meta-label">TRAINER</div>
+    <input class="meta-input" id="trainerName" type="text" placeholder="Your name">
+  </div>
+  <div class="meta-row">
+    <div class="meta-label">TRAINEE</div>
+    <input class="meta-input" id="traineeName" type="text" placeholder="New starter name">
+  </div>
+  <div class="meta-row">
+    <div class="meta-label">DATE</div>
+    <input class="meta-input" id="dateField" type="text" placeholder="DD/MM/YYYY" readonly>
+    <input type="date" id="dateHidden" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;">
+  </div>
+  <div class="meta-row">
+    <div class="meta-label">DAY</div>
+    <div class="day-toggle" id="dayToggle">
+      <button type="button" class="day-btn" data-day="1">Day 1</button>
+      <button type="button" class="day-btn" data-day="2">Day 2</button>
+    </div>
+  </div>
+
+  <div class="section-header collapsed" id="coverageHeader">
+    <div class="section-header-row">
+      <div class="section-kicker">TRAINING COVERAGE</div>
+      <span class="section-chevron collapsed" id="coverageChevron">&#9650;</span>
+    </div>
+    <div class="section-note">Select Yes or No, then rate how the trainee did</div>
+  </div>
+  <div class="section-body collapsed" id="coverageBody">
+  <div id="coverageQuestions"></div>
+  </div>
+
+  <div class="section-header collapsed" id="drivingHeader">
+    <div class="section-header-row">
+      <div class="section-kicker">DRIVING ABILITY</div>
+      <span class="section-chevron collapsed" id="drivingChevron">&#9650;</span>
+    </div>
+    <div class="section-note">Your honest assessment of their driving</div>
+  </div>
+  <div class="section-body collapsed" id="drivingBody">
+  <div class="qcard">
+    <div class="qtitle">Has your trainee driven a van before?</div>
+    <div class="qsubtext">Placeholder guidance text — this will explain what this topic covers and what good looks like once we write the real copy.</div>
+    <div class="options" id="drivenBefore" style="margin-top:12px; margin-bottom:0;">
+      <button type="button" class="pill" data-val="Yes">YES</button>
+      <button type="button" class="pill" data-val="No">NO</button>
+    </div>
+  </div>
+  <div id="drivingScales"></div>
+  <div class="qcard">
+    <div class="qtitle">Any other driving related concerns?</div>
+    <textarea id="drivingConcerns" placeholder="N/A" style="margin-top:12px;"></textarea>
+  </div>
+  </div>
+
+  <div class="section-header collapsed" id="feedbackHeader">
+    <div class="section-header-row">
+      <div class="section-kicker">OVERALL FEEDBACK</div>
+      <span class="section-chevron collapsed" id="feedbackChevron">&#9650;</span>
+    </div>
+    <div class="section-note">This section is confidential — your trainee and other trainers will never see it. Please be completely honest here; anything you write stays between you and the management team.</div>
+  </div>
+  <div class="section-body collapsed" id="feedbackBody">
+  <div class="qcard">
+    <div class="qtitle">Overall feedback for the day</div>
+    <div class="qsubtext">Placeholder guidance text — this will explain what this topic covers and what good looks like once we write the real copy.</div>
+    <div id="overallRatingTabs" style="display:flex; flex-wrap:nowrap; gap:6px; width:100%; margin-bottom:12px;">
+      <button type="button" class="pill" data-val="POOR" style="flex:1; min-width:0; padding:9px 2px; font-size:11px; white-space:nowrap;">POOR</button>
+      <button type="button" class="pill" data-val="FAIR" style="flex:1; min-width:0; padding:9px 2px; font-size:11px; white-space:nowrap;">FAIR</button>
+      <button type="button" class="pill" data-val="GREAT" style="flex:1; min-width:0; padding:9px 2px; font-size:11px; white-space:nowrap;">GREAT</button>
+      <button type="button" class="pill" data-val="FANTASTIC" style="flex:1; min-width:0; padding:9px 2px; font-size:11px; white-space:nowrap;">FANTASTIC</button>
+    </div>
+    <textarea id="overallFeedback" placeholder="How did the day go overall?"></textarea>
+  </div>
+  <div class="qcard">
+    <div class="qtitle">Focus Areas for improvement</div>
+    <div class="qsubtext">Placeholder guidance text — this will explain what this topic covers and what good looks like once we write the real copy.</div>
+    <textarea id="areasImprovement" placeholder="What should they focus on next?"></textarea>
+  </div>
+  <div class="qcard">
+    <div class="qtitle">Do you think they are suitable for the role?</div>
+    <div class="qsubtext">Placeholder guidance text — this will explain what this topic covers and what good looks like once we write the real copy.</div>
+    <div class="options" id="suitableRole" style="margin-bottom:0;">
+      <button type="button" class="pill" data-val="Yes">Yes</button>
+      <button type="button" class="pill" data-val="No">No</button>
+    </div>
+    <textarea id="notSuitableReason" placeholder="Why not suitable?" style="margin-top:12px; display:none;"></textarea>
+  </div>
+  <div class="qcard">
+    <div class="qtitle">Further training needed?</div>
+    <div class="qsubtext">Placeholder guidance text — this will explain what this topic covers and what good looks like once we write the real copy.</div>
+    <div class="options" id="furtherTraining" style="margin-bottom:0;">
+      <button type="button" class="pill" data-val="Yes">Yes</button>
+      <button type="button" class="pill" data-val="No">No</button>
+    </div>
+    <textarea id="furtherTrainingReason" placeholder="What further training is needed?" style="margin-top:12px; display:none;"></textarea>
+  </div>
+  </div>
+
+  <div class="footer-ts" id="genTimestamp"></div>
+</div>
+
+<div class="sendbar">
+  <button class="send-btn" id="sendBtn" disabled>Send Report</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+const PLACEHOLDER_SUBTEXT = "Placeholder guidance text — this will explain what this topic covers and what good looks like once we write the real copy.";
+
+const SUBTEXT = {
+  "LOADOUT PROCESS": "Wave plan explanation, queuing, depot entry, cage finding and scanning, water/toilet locations, whistle signal, problem solve, missing and damaged parcels.",
+  "NOTIFY OF ARRIVAL": "Using the Flex app to notify the customer of arrival at each stop, at the right moment in the delivery process.",
+  "OTP DELIVERY": "Completing a One Time Password delivery correctly — confirming the code with the customer before marking the parcel delivered.",
+  "AVD DELIVERY": "Completing an Age Verified Delivery correctly — checking ID, confirming age, and following the process if it fails.",
+  "AMAZON LOCKER DELIVERY": "Delivering parcels into an Amazon Locker correctly, including scanning and closing the right locker door.",
+  "AMAZON COUNTER": "Delivering parcels to a staffed Amazon Counter location and completing the handover correctly.",
+  "HOME COLLECTION": "Collecting a return parcel from a customer's home, including checking and scanning it correctly.",
+  "BUSINESS DELIVERY": "Delivering to business addresses, including checking opening hours, timed windows and reception handover.",
+  "FLEX APP KNOWLEDGE": "General confidence using the Flex app — route order, scanning, marking parcels, and finding their way around it.",
+  "CUSTOMER INTERACTION": "Being polite, professional and clear with customers at the door, and handling awkward moments well.",
+  "REATTEMPTS": "Correctly marking and processing a failed delivery for reattempt, with the right reason selected.",
+  "NAVIGATION SKILLS": "Using in-van and app navigation together, and knowing what to do if the app doesn't give directions.",
+  "END OF SHIFT PROCESS": "Returning undelivered parcels, bags and equipment to depot correctly, and completing end of day checks.",
+  "UNATTENDED DELIVERY SAFE PLACES": "Choosing appropriate safe places for unattended deliveries when nobody answers, and photographing them correctly."
+};
+
+const COVERAGE = [
+  "VAN CHECKS",
+  "CLEARQUOTE",
+  "NETRADYNE",
+  "FUELLING",
+  "LOADOUT PROCESS",
+  "HIGH VALUE PROCESS",
+  "WORKFLOW COMPLIANCE",
+  "NOTIFY OF ARRIVAL",
+  "MAILBOX DELIVERY",
+  "UNATTENDED DELIVERY SAFE PLACES",
+  "OTP DELIVERY",
+  "AVD DELIVERY",
+  "AMAZON LOCKER DELIVERY",
+  "AMAZON LOCKER COLLECTION",
+  "AMAZON COUNTER",
+  "HOME COLLECTION",
+  "BUSINESS DELIVERY",
+  "FLEX APP KNOWLEDGE",
+  "CUSTOMER INTERACTION",
+  "REATTEMPTS",
+  "NAVIGATION SKILLS",
+  "AVI TUNNEL",
+  "END OF SHIFT PROCESS"
+];
+
+const coverageState = {};
+const covContainer = document.getElementById('coverageQuestions');
+
+COVERAGE.forEach((title, i) => {
+  coverageState[i] = { answer: null, rating: 6, ratingTouched: false };
+
+  const card = document.createElement('div');
+  card.className = 'qcard';
+
+  const t = document.createElement('div');
+  t.className = 'qtitle';
+  t.textContent = title;
+  card.appendChild(t);
+
+  const sub = document.createElement('div');
+  sub.className = 'qsubtext';
+  sub.textContent = SUBTEXT[title] || PLACEHOLDER_SUBTEXT;
+  card.appendChild(sub);
+
+  const opts = document.createElement('div');
+  opts.className = 'options';
+
+  // --- custom slider: 12 steps, 3 per band (Poor/Fair/Great/Fantastic),
+  // evenly spaced so each label sits under its own quarter of the track ---
+  let currentValue = 6;
+  let disabledFlag = true;
+  let dragging = false;
+  let touched = false;
+
+  const poorBox = document.createElement('textarea');
+  poorBox.placeholder = 'Rated poor, please provide extra information for why such a low score for this module';
+  poorBox.style.marginTop = '12px';
+  poorBox.style.display = 'none';
+
+  const optsRow = document.createElement('div');
+  optsRow.style.display = 'flex';
+  optsRow.style.justifyContent = 'space-between';
+  optsRow.style.alignItems = 'flex-end';
+  optsRow.style.marginBottom = '8px';
+  opts.style.marginBottom = '0';
+
+  const scoreLabel = document.createElement('span');
+  scoreLabel.className = 'slider-score inactive';
+  scoreLabel.textContent = '—';
+
+  const sliderWrap = document.createElement('div');
+  sliderWrap.className = 'slider-wrap';
+
+  const customSlider = document.createElement('div');
+  customSlider.className = 'custom-slider';
+  const track = document.createElement('div');
+  track.className = 'custom-slider-track';
+  const fill = document.createElement('div');
+  fill.className = 'custom-slider-fill';
+  track.appendChild(fill);
+  const thumb = document.createElement('div');
+  thumb.className = 'custom-slider-thumb';
+  customSlider.appendChild(track);
+  customSlider.appendChild(thumb);
+  sliderWrap.appendChild(customSlider);
+
+  const labels = document.createElement('div');
+  labels.className = 'slider-labels';
+  labels.innerHTML = '<span style="left:12.5%">POOR</span><span style="left:37.5%">FAIR</span><span style="left:62.5%">GREAT</span><span style="left:87.5%">FANTASTIC</span>';
+  sliderWrap.appendChild(labels);
+
+  const POOR_THRESHOLD = 3;
+  function render(){
+    const pct = touched ? valueToPercent(currentValue) : 50;
+    fill.style.width = pct + '%';
+    thumb.style.left = pct + '%';
+    customSlider.classList.toggle('disabled', disabledFlag);
+    if (disabledFlag) {
+      fill.style.background = '';
+      thumb.style.background = '';
+    } else {
+      const c = coverageSliderColor(currentValue);
+      fill.style.background = c;
+      thumb.style.background = c;
+    }
+    scoreLabel.classList.toggle('inactive', disabledFlag);
+    if (disabledFlag) {
+      scoreLabel.textContent = '—';
+      scoreLabel.style.color = '';
+    } else {
+      scoreLabel.textContent = ratingName(currentValue);
+      scoreLabel.style.color = coverageSliderColor(currentValue);
+    }
+    poorBox.style.display = (!disabledFlag && coverageState[i].answer === 'Yes' && currentValue <= POOR_THRESHOLD) ? 'block' : 'none';
+  }
+
+  function updateFromClientX(clientX){
+    touched = true;
+    const rect = track.getBoundingClientRect();
+    const pct = ((clientX - rect.left) / rect.width) * 100;
+    currentValue = percentToValue(pct);
+    render();
+  }
+  function commit(){
+    coverageState[i].rating = currentValue;
+    coverageState[i].ratingTouched = true;
+    coverageState[i].poorReason = poorBox.value;
+    updateSendState();
+  }
+  customSlider.addEventListener('pointerdown', (e) => {
+    if (disabledFlag) return;
+    customSlider.setPointerCapture(e.pointerId);
+    dragging = true;
+    updateFromClientX(e.clientX);
+  });
+  customSlider.addEventListener('pointermove', (e) => { if (dragging) updateFromClientX(e.clientX); });
+  customSlider.addEventListener('pointerup', () => { if (dragging) { dragging = false; commit(); } });
+  customSlider.addEventListener('pointercancel', () => { dragging = false; });
+
+  poorBox.addEventListener('input', () => { coverageState[i].poorReason = poorBox.value; });
+
+  render();
+
+  function resetToDefault(){
+    coverageState[i].answer = null;
+    coverageState[i].rating = 5;
+    coverageState[i].ratingTouched = false;
+    coverageState[i].poorReason = '';
+    currentValue = 6;
+    touched = false;
+    disabledFlag = true;
+    poorBox.value = '';
+    [...opts.children].forEach(c => c.classList.remove('selected'));
+    render();
+    updateSendState();
+  }
+
+  ['Yes','No'].forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pill';
+    btn.textContent = opt;
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('selected')) {
+        // clicking the already-selected pill deselects it and resets this card
+        resetToDefault();
+        return;
+      }
+      coverageState[i].answer = opt;
+      [...opts.children].forEach(c => c.classList.remove('selected'));
+      btn.classList.add('selected');
+      disabledFlag = (opt === 'No');
+      render();
+      updateSendState();
+    });
+    opts.appendChild(btn);
+  });
+
+  optsRow.appendChild(opts);
+  optsRow.appendChild(scoreLabel);
+  card.appendChild(optsRow);
+  card.appendChild(sliderWrap);
+  card.appendChild(poorBox);
+
+  covContainer.appendChild(card);
+});
+
+// simple yes/no groups
+function wireYesNo(containerId){
+  const el = document.getElementById(containerId);
+  [...el.children].forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('selected')) {
+        btn.classList.remove('selected');
+        updateSendState();
+        return;
+      }
+      [...el.children].forEach(c => c.classList.remove('selected'));
+      btn.classList.add('selected');
+      updateSendState();
+    });
+  });
+}
+['drivenBefore','suitableRole','furtherTraining'].forEach(wireYesNo);
+
+// show a reason box when the "problem" answer is picked; hide/clear it otherwise
+function wireConditionalReason(groupId, triggerVal, textareaId){
+  const el = document.getElementById(groupId);
+  const box = document.getElementById(textareaId);
+  [...el.children].forEach(btn => {
+    btn.addEventListener('click', () => {
+      const isSelected = btn.classList.contains('selected'); // state AFTER wireYesNo's own handler already ran
+      if (isSelected && btn.dataset.val === triggerVal) {
+        box.style.display = 'block';
+      } else {
+        box.style.display = 'none';
+        box.value = '';
+      }
+    });
+  });
+}
+wireConditionalReason('suitableRole', 'No', 'notSuitableReason');
+wireConditionalReason('furtherTraining', 'Yes', 'furtherTrainingReason');
+
+// collapsible sections
+[
+  ['coverageHeader', 'coverageBody', 'coverageChevron'],
+  ['drivingHeader', 'drivingBody', 'drivingChevron'],
+  ['feedbackHeader', 'feedbackBody', 'feedbackChevron']
+].forEach(([headerId, bodyId, chevronId]) => {
+  const header = document.getElementById(headerId);
+  const body = document.getElementById(bodyId);
+  const chevron = document.getElementById(chevronId);
+  header.addEventListener('click', () => {
+    const collapsed = body.classList.toggle('collapsed');
+    chevron.classList.toggle('collapsed', collapsed);
+    header.classList.toggle('collapsed', collapsed);
+  });
+});
+
+const dayToggle = document.getElementById('dayToggle');
+[...dayToggle.children].forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('selected')) {
+      btn.classList.remove('selected');
+      updateSendState();
+      return;
+    }
+    [...dayToggle.children].forEach(c => c.classList.remove('selected'));
+    btn.classList.add('selected');
+    updateSendState();
+  });
+});
+
+
+// colour helpers: red (1) -> amber (5) -> green (10)
+function hexToRgb(hex){
+  const v = parseInt(hex.slice(1), 16);
+  return [(v>>16)&255, (v>>8)&255, v&255];
+}
+function rgbToHex(r,g,b){
+  return '#' + [r,g,b].map(x => Math.round(x).toString(16).padStart(2,'0')).join('');
+}
+function lerpColor(c1, c2, t){
+  const [r1,g1,b1] = hexToRgb(c1);
+  const [r2,g2,b2] = hexToRgb(c2);
+  return rgbToHex(r1+(r2-r1)*t, g1+(g2-g1)*t, b1+(b2-b1)*t);
+}
+function scaleColor(n){
+  if (n <= 2) return '#cc0000';
+  if (n <= 5) return '#f5b83d';
+  if (n <= 8) return '#34a853';
+  return '#3a8feb';
+}
+
+// coverage slider: Poor (red) -> Fair (amber) -> Great (green) -> Fantastic (blue), 2 steps per band
+function coverageSliderColor(v){
+  if (v <= 3) return '#cc0000';
+  if (v <= 6) return '#f5b83d';
+  if (v <= 9) return '#34a853';
+  return '#3a8feb';
+}
+
+// shared 12-step Poor/Fair/Great/Fantastic maths, used by coverage sliders and driving scales
+function valueToPercent(v){
+  return ((v - 1) / 11) * 100;
+}
+function percentToValue(pct){
+  pct = Math.max(0, Math.min(100, pct));
+  return Math.round(1 + (pct / 100) * 11);
+}
+function ratingName(v){
+  if (v <= 3) return 'POOR';
+  if (v <= 6) return 'FAIR';
+  if (v <= 9) return 'GREAT';
+  return 'FANTASTIC';
+}
+
+// builds a Poor/Fair/Great/Fantastic drag slider card, matching the coverage cards
+const drivingScaleTouched = {};
+function buildScaleCard(title, key){
+  drivingScaleTouched[key] = false;
+
+  const card = document.createElement('div');
+  card.className = 'qcard';
+
+  const t0 = document.createElement('div');
+  t0.className = 'qtitle';
+  t0.textContent = title;
+  card.appendChild(t0);
+
+  const sub = document.createElement('div');
+  sub.className = 'qsubtext';
+  sub.textContent = PLACEHOLDER_SUBTEXT;
+  card.appendChild(sub);
+
+  const headerRow = document.createElement('div');
+  headerRow.style.display = 'flex';
+  headerRow.style.justifyContent = 'flex-end';
+  headerRow.style.marginBottom = '4px';
+
+  const scoreLabel = document.createElement('span');
+  scoreLabel.className = 'slider-score inactive';
+  scoreLabel.textContent = '—';
+  headerRow.appendChild(scoreLabel);
+
+  card.appendChild(headerRow);
+
+  let currentValue = 6;
+  let dragging = false;
+
+  const sliderWrap = document.createElement('div');
+  sliderWrap.className = 'slider-wrap';
+
+  const customSlider = document.createElement('div');
+  customSlider.className = 'custom-slider';
+  const track = document.createElement('div');
+  track.className = 'custom-slider-track';
+  const fill = document.createElement('div');
+  fill.className = 'custom-slider-fill';
+  track.appendChild(fill);
+  const thumb = document.createElement('div');
+  thumb.className = 'custom-slider-thumb';
+  customSlider.appendChild(track);
+  customSlider.appendChild(thumb);
+  sliderWrap.appendChild(customSlider);
+
+  const labels = document.createElement('div');
+  labels.className = 'slider-labels';
+  labels.innerHTML = '<span style="left:12.5%">POOR</span><span style="left:37.5%">FAIR</span><span style="left:62.5%">GREAT</span><span style="left:87.5%">FANTASTIC</span>';
+  sliderWrap.appendChild(labels);
+
+  card.appendChild(sliderWrap);
+
+  function render(){
+    const pct = drivingScaleTouched[key] ? valueToPercent(currentValue) : 50;
+    fill.style.width = pct + '%';
+    thumb.style.left = pct + '%';
+    customSlider.classList.toggle('untouched', !drivingScaleTouched[key]);
+    if (drivingScaleTouched[key]) {
+      const c = coverageSliderColor(currentValue);
+      fill.style.background = c;
+      thumb.style.background = c;
+      scoreLabel.classList.remove('inactive');
+      scoreLabel.textContent = ratingName(currentValue);
+      scoreLabel.style.color = c;
+    } else {
+      fill.style.background = '';
+      thumb.style.background = '';
+      scoreLabel.classList.add('inactive');
+      scoreLabel.textContent = '—';
+      scoreLabel.style.color = '';
+    }
+  }
+
+  function updateFromClientX(clientX){
+    drivingScaleTouched[key] = true;
+    const rect = track.getBoundingClientRect();
+    const pct = ((clientX - rect.left) / rect.width) * 100;
+    currentValue = percentToValue(pct);
+    render();
+  }
+
+  customSlider.addEventListener('pointerdown', (e) => {
+    if (drivingScaleTouched[key]) {
+      drivingScaleTouched[key] = false;
+      currentValue = 6;
+      render();
+      updateSendState();
+      return;
+    }
+    customSlider.setPointerCapture(e.pointerId);
+    dragging = true;
+    updateFromClientX(e.clientX);
+  });
+  customSlider.addEventListener('pointermove', (e) => { if (dragging) updateFromClientX(e.clientX); });
+  customSlider.addEventListener('pointerup', () => {
+    if (dragging) { dragging = false; updateSendState(); }
+  });
+  customSlider.addEventListener('pointercancel', () => { dragging = false; });
+
+  render();
+  return card;
+}
+
+const drivingScalesContainer = document.getElementById('drivingScales');
+[
+  ["Driving Confidence", "confidence"],
+  ["Driving Safety", "safety"],
+  ["Reversing Quality", "reversing"],
+  ["Spatial Awareness", "spatial"]
+].forEach(([title, key]) => {
+  drivingScalesContainer.appendChild(buildScaleCard(title, key));
+});
+
+// overall rating: 4 tablets (Poor/Fair/Great/Fantastic), coloured, toggle-to-deselect
+const overallRatingTabs = document.getElementById('overallRatingTabs');
+let overallRating = null;
+const overallTabColors = { POOR: '#cc0000', FAIR: '#f5b83d', GREAT: '#34a853', FANTASTIC: '#3a8feb' };
+[...overallRatingTabs.children].forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('selected')) {
+      btn.classList.remove('selected');
+      btn.style.background = '';
+      overallRating = null;
+      updateSendState();
+      return;
+    }
+    [...overallRatingTabs.children].forEach(c => { c.classList.remove('selected'); c.style.background = ''; });
+    btn.classList.add('selected');
+    btn.style.background = overallTabColors[btn.dataset.val];
+    overallRating = btn.dataset.val;
+    updateSendState();
+  });
+});
+
+// date field: auto-fill today, tap opens native picker (with safe fallback)
+const dateField = document.getElementById('dateField');
+const dateHidden = document.getElementById('dateHidden');
+
+function formatDisplayDate(d){
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+function toISODate(d){
+  return d.toISOString().split('T')[0];
+}
+
+const today = new Date();
+dateField.value = formatDisplayDate(today);
+dateHidden.value = toISODate(today);
+
+dateField.addEventListener('click', () => {
+  try {
+    if (dateHidden.showPicker) { dateHidden.showPicker(); }
+    else { dateHidden.click(); }
+  } catch (err) {
+    try { dateHidden.click(); } catch (err2) { /* native picker unavailable in this preview */ }
+  }
+});
+dateHidden.addEventListener('change', () => {
+  if (dateHidden.value) {
+    const [y,m,d] = dateHidden.value.split('-').map(Number);
+    const chosen = new Date(y, m-1, d);
+    dateField.value = formatDisplayDate(chosen);
+  }
+});
+
+function stampFooter(){
+  const d = new Date();
+  const ds = formatDisplayDate(d);
+  const ts = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  document.getElementById('genTimestamp').textContent = `Generated ${ds}, ${ts}`;
+}
+stampFooter();
+
+function updateSendState(){
+  const btn = document.getElementById('sendBtn');
+  const site = document.getElementById('siteField').value;
+  const trainer = document.getElementById('trainerName').value.trim();
+  const trainee = document.getElementById('traineeName').value.trim();
+  const dayOk = !!document.querySelector('#dayToggle .selected');
+
+  const coverageOk = COVERAGE.every((_, i) => {
+    const st = coverageState[i];
+    if (!st.answer) return false;
+    if (st.answer === 'Yes' && !st.ratingTouched) return false;
+    return true;
+  });
+
+  const drivenOk = !!document.querySelector('#drivenBefore .selected');
+  const scalesOk = Object.keys(drivingScaleTouched).length > 0 && Object.values(drivingScaleTouched).every(v => v);
+  const overallFeedbackOk = document.getElementById('overallFeedback').value.trim().length > 0;
+  const areasOk = document.getElementById('areasImprovement').value.trim().length > 0;
+  const starsOk = overallRating !== null;
+  const suitableOk = !!document.querySelector('#suitableRole .selected');
+  const furtherOk = !!document.querySelector('#furtherTraining .selected');
+
+  const allValid = site && trainer && trainee && dayOk && coverageOk && drivenOk && scalesOk && overallFeedbackOk && areasOk && starsOk && suitableOk && furtherOk;
+  btn.disabled = !allValid;
+}
+
+document.getElementById('siteField').addEventListener('change', updateSendState);
+document.getElementById('trainerName').addEventListener('input', updateSendState);
+document.getElementById('traineeName').addEventListener('input', updateSendState);
+document.getElementById('overallFeedback').addEventListener('input', updateSendState);
+document.getElementById('areasImprovement').addEventListener('input', updateSendState);
+updateSendState();
+
+document.getElementById('sendBtn').addEventListener('click', async () => {
+  const site = document.getElementById('siteField').value;
+  const trainee = document.getElementById('traineeName').value;
+  if (!site) { alert('Please select which site this ride along is for.'); return; }
+  if (!trainee) { alert('Please enter the trainee name.'); return; }
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  stampFooter();
+
+  const target = document.getElementById('report');
+  try {
+    const canvas = await html2canvas(target, {
+      backgroundColor: '#0a0a0a',
+      scale: 3,
+      useCORS: true
+    });
+
+    canvas.toBlob(async (blob) => {
+      const siteVal = document.getElementById('siteField').value || '';
+      const filename = `ride-along-${siteVal}-${trainee}`.replace(/\s+/g,'-').toLowerCase() + '.png';
+      const file = new File([blob], filename, { type: 'image/png' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'Ride Along Report',
+            text: `Ride along report for ${trainee}`
+          });
+        } catch (e) {
+          // user cancelled the share sheet — no fallback, just reset the button
+        }
+      } else {
+        alert('Sharing isn\'t supported in this browser. Please open this tool in Safari or Chrome on your phone to send the report.');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Send Report';
+    }, 'image/png');
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false;
+    btn.textContent = 'Send Report';
+    alert('Something went wrong generating the report. Please try again.');
+  }
+});
+</script>
+</body>
+</html>
