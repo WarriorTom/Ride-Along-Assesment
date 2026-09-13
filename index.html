@@ -707,16 +707,6 @@
   }
   .send-btn:active{ opacity:0.85; }
   .send-btn:disabled{ opacity:0.5; }
-  #missingFieldsList{
-    margin-top:12px;
-    padding:12px 14px;
-    background:#fff5f5;
-    border:1px solid #fecaca;
-    border-radius:8px;
-    font-size:12.5px;
-    line-height:1.7;
-    color:#7a1a1a;
-  }
 
   /* PIN screen */
   #pinScreen{
@@ -1009,6 +999,7 @@
       <button type="button" class="pill" data-val="Yes">YES</button>
       <button type="button" class="pill" data-val="No">NO</button>
     </div>
+    <textarea id="drivenBeforeDetails" placeholder="Briefly note their previous van driving experience" style="margin-top:12px; display:none;"></textarea>
   </div>
   <div class="qcard">
     <div class="qtitle">Any Driving Concerns?</div>
@@ -1033,25 +1024,7 @@
       <button type="button" class="pill" data-val="GREAT" style="flex:1; min-width:0; padding:9px 2px; font-size:11px; white-space:nowrap;">GREAT</button>
       <button type="button" class="pill" data-val="FANTASTIC" style="flex:1; min-width:0; padding:9px 2px; font-size:11px; white-space:nowrap;">FANTASTIC</button>
     </div>
-    <textarea id="overallFeedback" placeholder="How did the day go overall?"></textarea>
-  </div>
-  <div class="qcard">
-    <div class="qtitle">Trainee Suitable For The Role?</div>
-    <div class="qsubtext">Assess whether the trainee is suitable for the role based on their overall performance, driving, safety, process knowledge, confidence and ability to work independently.</div>
-    <div class="options" id="suitableRole" style="margin-bottom:0;">
-      <button type="button" class="pill" data-val="Yes">Yes</button>
-      <button type="button" class="pill" data-val="No">No</button>
-    </div>
-    <textarea id="notSuitableReason" placeholder="Why not suitable?" style="margin-top:12px; display:none;"></textarea>
-  </div>
-  <div class="qcard">
-    <div class="qtitle">Further training needed?</div>
-    <div class="qsubtext">Record any further training needed for the trainee, including processes, driving skills, safety areas or tasks requiring coaching and practice where needed.</div>
-    <div class="options" id="furtherTraining" style="margin-bottom:0;">
-      <button type="button" class="pill" data-val="Yes">Yes</button>
-      <button type="button" class="pill" data-val="No">No</button>
-    </div>
-    <textarea id="furtherTrainingReason" placeholder="What further training is needed?" style="margin-top:12px; display:none;"></textarea>
+    <textarea id="overallFeedback" placeholder="How did the day go overall?" style="border-color:var(--accent); min-height:160px;"></textarea>
   </div>
   </div>
   </div>
@@ -1063,7 +1036,6 @@
   <div class="sendbar">
     <div class="sendbar-inner">
       <button class="send-btn glow-ring" id="sendBtn" disabled>Submit Assessment</button>
-      <div id="missingFieldsList" style="display:none;"></div>
       <button type="button" id="giveFeedbackBtn" class="feedback-btn">Give Feedback on This Platform</button>
     </div>
   </div>
@@ -1072,10 +1044,10 @@
 <div class="modal-overlay" id="feedbackModalOverlay">
   <div class="modal-card">
     <div class="modal-header">
-      <span class="modal-title">Warrior Watch Feedback</span>
+      <span class="modal-title">Platform Feedback</span>
       <span class="modal-close" id="feedbackModalClose">&times;</span>
     </div>
-    <div class="qsubtext" style="margin-bottom:12px;">Report any bugs, confusing sections, errors or ideas for improvement. Feedback is sent directly to the person responsible for building and improving the app.</div>
+    <div class="qsubtext" style="margin-bottom:12px;">Report any bugs, confusing sections, errors or ideas for improvement. Feedback is sent directly to the person responsible for building and improving the platform.</div>
     <textarea id="feedbackModalText" placeholder="Type your feedback here..."></textarea>
     <button class="send-btn" id="submitFeedbackBtn" style="margin-top:12px;">Submit Feedback</button>
     <div class="status-msg" id="feedbackStatusMsg"></div>
@@ -1084,7 +1056,6 @@
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
   import { getFirestore, collection, addDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -1169,8 +1140,39 @@ const COVERAGE = [
 const coverageState = {};
 const covContainer = document.getElementById('coverageQuestions');
 
+// coverage slider: Poor (red) -> Fair (amber) -> Great (green) -> Fantastic (blue), 4 discrete points
+function coverageSliderColor(v){
+  if (v <= 1) return '#cc0000';
+  if (v <= 2) return '#f5b83d';
+  if (v <= 3) return '#34a853';
+  return '#3a8feb';
+}
+
+// shared 4-point Poor/Fair/Great/Fantastic maths, used by coverage sliders and driving scales
+// positions match the label centres below the track (12.5% / 37.5% / 62.5% / 87.5%)
+const SLIDER_POSITIONS = [12.5, 37.5, 62.5, 87.5];
+function valueToPercent(v){
+  return SLIDER_POSITIONS[Math.max(0, Math.min(3, v - 1))];
+}
+function percentToValue(pct){
+  pct = Math.max(0, Math.min(100, pct));
+  let closestIdx = 0;
+  let closestDist = Infinity;
+  SLIDER_POSITIONS.forEach((p, idx) => {
+    const dist = Math.abs(pct - p);
+    if (dist < closestDist) { closestDist = dist; closestIdx = idx; }
+  });
+  return closestIdx + 1;
+}
+function ratingName(v){
+  if (v <= 1) return 'POOR';
+  if (v <= 2) return 'FAIR';
+  if (v <= 3) return 'GREAT';
+  return 'FANTASTIC';
+}
+
 COVERAGE.forEach((title, i) => {
-  coverageState[i] = { answer: null, rating: 6, ratingTouched: false };
+  coverageState[i] = { answer: null, rating: 4, ratingTouched: false };
 
   const card = document.createElement('div');
   card.className = 'qcard';
@@ -1190,7 +1192,7 @@ COVERAGE.forEach((title, i) => {
 
   // --- custom slider: 12 steps, 3 per band (Poor/Fair/Great/Fantastic),
   // evenly spaced so each label sits under its own quarter of the track ---
-  let currentValue = 6;
+  let currentValue = 4;
   let disabledFlag = true;
   let dragging = false;
   let touched = false;
@@ -1232,27 +1234,25 @@ COVERAGE.forEach((title, i) => {
   labels.innerHTML = '<span style="left:12.5%">POOR</span><span style="left:37.5%">FAIR</span><span style="left:62.5%">GREAT</span><span style="left:87.5%">FANTASTIC</span>';
   sliderWrap.appendChild(labels);
 
-  const POOR_THRESHOLD = 3;
+  const POOR_THRESHOLD = 1;
   function render(){
-    const pct = touched ? valueToPercent(currentValue) : 50;
-    fill.style.width = pct + '%';
+    const pct = valueToPercent(currentValue);
     thumb.style.left = pct + '%';
     customSlider.classList.toggle('disabled', disabledFlag);
-    if (disabledFlag || !touched) {
+    if (disabledFlag) {
+      fill.style.width = pct + '%';
       fill.style.background = '';
       thumb.style.background = '';
     } else {
       const c = coverageSliderColor(currentValue);
+      fill.style.width = dragging ? (pct + '%') : '100%';
       fill.style.background = c;
       thumb.style.background = c;
     }
-    scoreLabel.classList.toggle('inactive', disabledFlag || !touched);
+    scoreLabel.classList.toggle('inactive', disabledFlag);
     if (disabledFlag) {
       scoreLabel.textContent = '—';
       scoreLabel.style.color = '';
-    } else if (!touched) {
-      scoreLabel.textContent = 'TAP TO RATE';
-      scoreLabel.style.color = 'var(--accent)';
     } else {
       scoreLabel.textContent = ratingName(currentValue);
       scoreLabel.style.color = coverageSliderColor(currentValue);
@@ -1284,8 +1284,8 @@ COVERAGE.forEach((title, i) => {
     try { customSlider.setPointerCapture(e.pointerId); } catch (err) { /* capture unsupported/failed — drag still works via move listener */ }
   });
   customSlider.addEventListener('pointermove', (e) => { if (dragging) updateFromClientX(e.clientX); });
-  customSlider.addEventListener('pointerup', () => { dragging = false; });
-  customSlider.addEventListener('pointercancel', () => { dragging = false; });
+  customSlider.addEventListener('pointerup', () => { dragging = false; render(); });
+  customSlider.addEventListener('pointercancel', () => { dragging = false; render(); });
 
   poorBox.addEventListener('input', () => { coverageState[i].poorReason = poorBox.value; });
 
@@ -1293,10 +1293,10 @@ COVERAGE.forEach((title, i) => {
 
   function resetToDefault(){
     coverageState[i].answer = null;
-    coverageState[i].rating = 5;
+    coverageState[i].rating = 4;
     coverageState[i].ratingTouched = false;
     coverageState[i].poorReason = '';
-    currentValue = 6;
+    currentValue = 4;
     touched = false;
     disabledFlag = true;
     poorBox.value = '';
@@ -1310,6 +1310,12 @@ COVERAGE.forEach((title, i) => {
     [...opts.children].forEach(c => c.classList.remove('selected'));
     btn.classList.add('selected');
     disabledFlag = (opt === 'No');
+    if (opt === 'Yes' && !touched) {
+      touched = true;
+      currentValue = 4; // FANTASTIC — sensible default, trainer can still adjust
+      coverageState[i].rating = currentValue;
+      coverageState[i].ratingTouched = true;
+    }
     render();
     updateSendState();
   }
@@ -1356,7 +1362,7 @@ function wireYesNo(containerId){
     });
   });
 }
-['drivenBefore','suitableRole','furtherTraining','drivingConcernsYesNo'].forEach(wireYesNo);
+['drivenBefore','drivingConcernsYesNo'].forEach(wireYesNo);
 
 // show a reason box when the "problem" answer is picked; hide/clear it otherwise
 function wireConditionalReason(groupId, triggerVal, textareaId){
@@ -1376,9 +1382,8 @@ function wireConditionalReason(groupId, triggerVal, textareaId){
     });
   });
 }
-wireConditionalReason('suitableRole', 'No', 'notSuitableReason');
-wireConditionalReason('furtherTraining', 'Yes', 'furtherTrainingReason');
 wireConditionalReason('drivingConcernsYesNo', 'Yes', 'drivingConcerns');
+wireConditionalReason('drivenBefore', 'Yes', 'drivenBeforeDetails');
 
 // collapsible sections
 [
@@ -1431,28 +1436,6 @@ function scaleColor(n){
   return '#3a8feb';
 }
 
-// coverage slider: Poor (red) -> Fair (amber) -> Great (green) -> Fantastic (blue), 2 steps per band
-function coverageSliderColor(v){
-  if (v <= 3) return '#cc0000';
-  if (v <= 6) return '#f5b83d';
-  if (v <= 9) return '#34a853';
-  return '#3a8feb';
-}
-
-// shared 12-step Poor/Fair/Great/Fantastic maths, used by coverage sliders and driving scales
-function valueToPercent(v){
-  return ((v - 1) / 11) * 100;
-}
-function percentToValue(pct){
-  pct = Math.max(0, Math.min(100, pct));
-  return Math.round(1 + (pct / 100) * 11);
-}
-function ratingName(v){
-  if (v <= 3) return 'POOR';
-  if (v <= 6) return 'FAIR';
-  if (v <= 9) return 'GREAT';
-  return 'FANTASTIC';
-}
 
 // builds a Poor/Fair/Great/Fantastic drag slider card, matching the coverage cards
 const drivingScaleTouched = {};
@@ -1485,7 +1468,7 @@ function buildScaleCard(title, key, description){
 
   card.appendChild(headerRow);
 
-  let currentValue = 6;
+  let currentValue = 4;
   let dragging = false;
 
   const sliderWrap = document.createElement('div');
@@ -1512,23 +1495,24 @@ function buildScaleCard(title, key, description){
   card.appendChild(sliderWrap);
 
   function render(){
-    const pct = drivingScaleTouched[key] ? valueToPercent(currentValue) : 50;
-    fill.style.width = pct + '%';
+    const pct = valueToPercent(currentValue);
     thumb.style.left = pct + '%';
     customSlider.classList.toggle('untouched', !drivingScaleTouched[key]);
     if (drivingScaleTouched[key]) {
       const c = coverageSliderColor(currentValue);
+      fill.style.width = dragging ? (pct + '%') : '100%';
       fill.style.background = c;
       thumb.style.background = c;
       scoreLabel.classList.remove('inactive');
       scoreLabel.textContent = ratingName(currentValue);
       scoreLabel.style.color = c;
     } else {
+      fill.style.width = pct + '%';
       fill.style.background = '';
       thumb.style.background = '';
       scoreLabel.classList.add('inactive');
-      scoreLabel.textContent = 'TAP TO RATE';
-      scoreLabel.style.color = 'var(--accent)';
+      scoreLabel.textContent = '—';
+      scoreLabel.style.color = '';
     }
   }
 
@@ -1548,8 +1532,8 @@ function buildScaleCard(title, key, description){
     try { customSlider.setPointerCapture(e.pointerId); } catch (err) { /* capture unsupported/failed — drag still works via move listener */ }
   });
   customSlider.addEventListener('pointermove', (e) => { if (dragging) updateFromClientX(e.clientX); });
-  customSlider.addEventListener('pointerup', () => { dragging = false; });
-  customSlider.addEventListener('pointercancel', () => { dragging = false; });
+  customSlider.addEventListener('pointerup', () => { dragging = false; render(); });
+  customSlider.addEventListener('pointercancel', () => { dragging = false; render(); });
 
   render();
   return card;
@@ -1660,24 +1644,9 @@ function updateSendState(){
   const starsOk = overallRating !== null;
   if (!starsOk) missing.push('Overall Feedback rating');
 
-  const suitableOk = !!document.querySelector('#suitableRole .selected');
-  if (!suitableOk) missing.push('Trainee Suitable For The Role (Yes/No)');
 
-  const furtherOk = !!document.querySelector('#furtherTraining .selected');
-  if (!furtherOk) missing.push('Further Training Needed (Yes/No)');
 
   btn.disabled = missing.length > 0;
-
-  const missingEl = document.getElementById('missingFieldsList');
-  if (missingEl) {
-    if (missing.length > 0) {
-      missingEl.style.display = 'block';
-      missingEl.innerHTML = '<strong>Still needed to submit:</strong><br>' + missing.map(m => '• ' + m).join('<br>');
-    } else {
-      missingEl.style.display = 'none';
-      missingEl.innerHTML = '';
-    }
-  }
 }
 
 function updateAviTunnelVisibility(){
@@ -1764,8 +1733,6 @@ function buildReportData(){
   }));
 
   const drivenBeforeAnswer = document.querySelector('#drivenBefore .selected')?.textContent || null;
-  const suitableAnswer = document.querySelector('#suitableRole .selected')?.textContent || null;
-  const furtherAnswer = document.querySelector('#furtherTraining .selected')?.textContent || null;
 
   return {
     site: document.getElementById('siteField').value,
@@ -1776,6 +1743,7 @@ function buildReportData(){
     coverage,
     drivingAbility: {
       drivenBefore: drivenBeforeAnswer,
+      drivenBeforeDetails: document.getElementById('drivenBeforeDetails').value || null,
       confidence: drivingScaleValues.confidence ?? null,
       safety: drivingScaleValues.safety ?? null,
       reversing: drivingScaleValues.reversing ?? null,
@@ -1786,10 +1754,6 @@ function buildReportData(){
       rating: overallRating,
       text: document.getElementById('overallFeedback').value
     },
-    suitableForRole: suitableAnswer,
-    notSuitableReason: document.getElementById('notSuitableReason').value || null,
-    furtherTrainingNeeded: furtherAnswer,
-    furtherTrainingReason: document.getElementById('furtherTrainingReason').value || null,
     generatedAt: document.getElementById('genTimestamp').textContent
   };
 }
@@ -1802,54 +1766,18 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
 
   const btn = document.getElementById('sendBtn');
   btn.disabled = true;
-  btn.textContent = 'Saving...';
+  btn.textContent = 'Submitting...';
   stampFooter();
 
   try {
     const reportData = buildReportData();
     await window.__firestoreSave(reportData);
+    btn.textContent = 'Submitted!';
   } catch (err) {
     console.error('Firestore save failed:', err);
-    alert('Could not save the report to the dashboard database. It will still generate as an image below.');
-  }
-
-  btn.textContent = 'Generating...';
-
-  const target = document.getElementById('report');
-  try {
-    const canvas = await html2canvas(target, {
-      backgroundColor: '#f5f7fa',
-      scale: 3,
-      useCORS: true
-    });
-
-    canvas.toBlob(async (blob) => {
-      const siteVal = document.getElementById('siteField').value || '';
-      const filename = `ride-along-${siteVal}-${trainee}`.replace(/\s+/g,'-').toLowerCase() + '.png';
-      const file = new File([blob], filename, { type: 'image/png' });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: 'Ride Along Report',
-            text: `Ride along report for ${trainee}`
-          });
-        } catch (e) {
-          // user cancelled the share sheet
-        }
-      } else {
-        alert('Sharing isn\'t supported in this browser. Please open this tool in Safari or Chrome on your phone to send the report.');
-      }
-
-      btn.disabled = false;
-      btn.textContent = 'Submit Assessment';
-    }, 'image/png');
-  } catch (err) {
-    console.error(err);
+    alert('Could not submit the assessment: ' + (err && err.message ? err.message : err) + '\n\nPlease check your connection and try again.');
     btn.disabled = false;
     btn.textContent = 'Submit Assessment';
-    alert('Something went wrong generating the report. Please try again.');
   }
 });
 </script>
