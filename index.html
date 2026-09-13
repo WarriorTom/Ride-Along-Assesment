@@ -1529,13 +1529,6 @@ function buildScaleCard(title, key, description){
   }
 
   customSlider.addEventListener('pointerdown', (e) => {
-    if (drivingScaleTouched[key]) {
-      drivingScaleTouched[key] = false;
-      currentValue = 6;
-      render();
-      updateSendState();
-      return;
-    }
     dragging = true;
     updateFromClientX(e.clientX);
     try { customSlider.setPointerCapture(e.pointerId); } catch (err) { /* capture unsupported/failed — drag still works via move listener */ }
