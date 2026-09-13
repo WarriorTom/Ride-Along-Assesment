@@ -615,25 +615,45 @@
             <div class="page-subtitle">Manage access to the Warrior Ops app and dashboard.</div>
           </div>
         </div>
-        <div class="settings-card" style="margin-bottom:20px;">
-          <label class="settings-label">New 4-digit PIN</label>
-          <input type="password" inputmode="numeric" maxlength="4" class="settings-input" id="newPinInput" placeholder="----">
-          <label class="settings-label">Confirm new PIN</label>
-          <input type="password" inputmode="numeric" maxlength="4" class="settings-input" id="confirmPinInput" placeholder="----">
-          <button class="settings-btn" id="savePinBtn">Save New PIN</button>
-          <div class="settings-status" id="pinSaveStatus"></div>
-          <div class="settings-note">This updates the PIN trainers use to open the app on their phone. It can take a few seconds to apply for anyone who already has the app open.</div>
+
+        <div id="settingsNonAdminNotice" style="display:none;" class="settings-card">
+          <div style="font-size:14px; color:var(--muted);">Admin access is required to manage settings. Ask an admin to grant you admin access if you need it.</div>
         </div>
 
-        <div class="settings-card">
-          <div style="font-size:15px; font-weight:700; margin-bottom:16px;">Dashboard Access</div>
-          <label class="settings-label">Email address</label>
-          <input type="email" class="settings-input" id="newUserEmail" placeholder="name@warriorlogistics.co.uk" style="letter-spacing:normal; font-size:14px; text-align:left;">
-          <label class="settings-label">Temporary password</label>
-          <input type="text" class="settings-input" id="newUserTempPassword" placeholder="e.g. Warrior2026!" style="letter-spacing:normal; font-size:14px; text-align:left;">
-          <button class="settings-btn" id="grantAccessBtn">Grant Access</button>
-          <div class="settings-status" id="grantAccessStatus"></div>
-          <div class="settings-note">Share the email and temporary password with them directly (they'll be asked to set their own password the first time they sign in). This isn't emailed automatically yet.</div>
+        <div id="settingsAdminArea" style="display:none;">
+          <div class="settings-card" style="margin-bottom:20px;">
+            <label class="settings-label">New 4-digit PIN</label>
+            <input type="password" inputmode="numeric" maxlength="4" class="settings-input" id="newPinInput" placeholder="----">
+            <label class="settings-label">Confirm new PIN</label>
+            <input type="password" inputmode="numeric" maxlength="4" class="settings-input" id="confirmPinInput" placeholder="----">
+            <button class="settings-btn" id="savePinBtn">Save New PIN</button>
+            <div class="settings-status" id="pinSaveStatus"></div>
+            <div class="settings-note">This updates the PIN trainers use to open the app on their phone. It can take a few seconds to apply for anyone who already has the app open.</div>
+          </div>
+
+          <div class="settings-card" style="margin-bottom:20px;">
+            <div style="font-size:15px; font-weight:700; margin-bottom:16px;">Dashboard Access</div>
+            <label class="settings-label">Email address</label>
+            <input type="email" class="settings-input" id="newUserEmail" placeholder="name@warriorlogistics.co.uk" style="letter-spacing:normal; font-size:14px; text-align:left;">
+            <label class="settings-label">Temporary password</label>
+            <input type="text" class="settings-input" id="newUserTempPassword" placeholder="e.g. Warrior2026!" style="letter-spacing:normal; font-size:14px; text-align:left;">
+            <label class="settings-label">Role</label>
+            <select class="settings-input" id="newUserRole" style="letter-spacing:normal; font-size:14px; text-align:left;">
+              <option value="user">User — can view assessments and feedback</option>
+              <option value="admin">Admin — can also manage settings and access</option>
+            </select>
+            <button class="settings-btn" id="grantAccessBtn">Grant Access</button>
+            <div class="settings-status" id="grantAccessStatus"></div>
+            <div class="settings-note">Share the email and temporary password with them directly (they'll be asked to set their own password the first time they sign in). This isn't emailed automatically yet.</div>
+          </div>
+
+          <div class="settings-card">
+            <div style="font-size:15px; font-weight:700; margin-bottom:16px;">Manage Users</div>
+            <table>
+              <thead><tr><th>Email</th><th>Role</th><th></th></tr></thead>
+              <tbody id="usersBody"><tr><td colspan="3" class="loading-row">Loading users...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -692,11 +712,14 @@
   }
 
   // ---------- Dashboard account auth ----------
+  let currentUserRole = 'user';
+
   async function loginWithEmail(email, password){
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const userSnap = await getDoc(doc(db, "users", cred.user.uid));
-    const mustChangePassword = userSnap.exists() ? !!userSnap.data().mustChangePassword : false;
-    return { mustChangePassword };
+    const data = userSnap.exists() ? userSnap.data() : {};
+    currentUserRole = data.role || 'user';
+    return { mustChangePassword: !!data.mustChangePassword, role: currentUserRole };
   }
 
   async function completeFirstLogin(newPassword){
@@ -704,18 +727,28 @@
     await setDoc(doc(db, "users", auth.currentUser.uid), { mustChangePassword: false }, { merge: true });
   }
 
-  async function grantAccess(email, tempPassword){
+  async function grantAccess(email, tempPassword, role){
     // created on the secondary app instance so it doesn't sign out the admin
     const cred = await createUserWithEmailAndPassword(secondaryAuth, email, tempPassword);
     await setDoc(doc(db, "users", cred.user.uid), {
-      email, mustChangePassword: true, createdAt: new Date().toISOString()
+      email, role: role === 'admin' ? 'admin' : 'user', mustChangePassword: true, createdAt: new Date().toISOString()
     });
     await signOut(secondaryAuth);
   }
 
+  async function fetchUsers(){
+    const snap = await getDocs(collection(db, "users"));
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  }
+
+  async function setUserRole(uid, role){
+    await setDoc(doc(db, "users", uid), { role: role === 'admin' ? 'admin' : 'user' }, { merge: true });
+  }
+
   window.__dashboard = {
     loadPin, savePin, fetchAssessments, fetchFeedback, getCurrentPin: () => currentPin,
-    loginWithEmail, completeFirstLogin, grantAccess
+    loginWithEmail, completeFirstLogin, grantAccess, fetchUsers, setUserRole,
+    getCurrentUserRole: () => currentUserRole
   };
 </script>
 
@@ -1058,6 +1091,7 @@
   document.getElementById('grantAccessBtn').addEventListener('click', async () => {
     const email = document.getElementById('newUserEmail').value.trim();
     const tempPassword = document.getElementById('newUserTempPassword').value;
+    const role = document.getElementById('newUserRole').value;
     const status = document.getElementById('grantAccessStatus');
     const btn = document.getElementById('grantAccessBtn');
 
@@ -1075,11 +1109,13 @@
     btn.disabled = true;
     btn.textContent = 'Creating...';
     try {
-      await window.__dashboard.grantAccess(email, tempPassword);
+      await window.__dashboard.grantAccess(email, tempPassword, role);
       status.textContent = `Access created for ${email}. Share the temporary password with them directly.`;
       status.className = 'settings-status success';
       document.getElementById('newUserEmail').value = '';
       document.getElementById('newUserTempPassword').value = '';
+      document.getElementById('newUserRole').value = 'user';
+      renderUsers();
     } catch (err) {
       console.error(err);
       status.textContent = err.code === 'auth/email-already-in-use' ? 'That email already has access.' : 'Something went wrong. Please try again.';
@@ -1091,6 +1127,47 @@
   });
 
   // ---------- Init ----------
+  // ---------- Users management (admin only) ----------
+  async function renderUsers(){
+    const body = document.getElementById('usersBody');
+    try {
+      const users = await window.__dashboard.fetchUsers();
+      if (users.length === 0) {
+        body.innerHTML = `<tr><td colspan="3"><div class="empty-state">No users yet.</div></td></tr>`;
+        return;
+      }
+      body.innerHTML = users.map(u => `
+        <tr>
+          <td>${u.email || '—'}</td>
+          <td>${u.role === 'admin' ? '<span class="badge badge-yes">Admin</span>' : '<span class="badge" style="background:rgba(15,23,42,0.06); color:var(--muted);">User</span>'}</td>
+          <td><button class="settings-btn" style="padding:6px 12px; font-size:11px;" data-uid="${u.uid}" data-role="${u.role === 'admin' ? 'user' : 'admin'}">${u.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button></td>
+        </tr>
+      `).join('');
+      body.querySelectorAll('button[data-uid]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try {
+            await window.__dashboard.setUserRole(btn.dataset.uid, btn.dataset.role);
+            renderUsers();
+          } catch (err) {
+            console.error(err);
+            btn.disabled = false;
+          }
+        });
+      });
+    } catch (err) {
+      console.error(err);
+      body.innerHTML = `<tr><td colspan="3"><div class="empty-state">Could not load users.</div></td></tr>`;
+    }
+  }
+
+  function applyRoleGate(){
+    const isAdmin = window.__dashboard.getCurrentUserRole() === 'admin';
+    document.getElementById('settingsAdminArea').style.display = isAdmin ? 'block' : 'none';
+    document.getElementById('settingsNonAdminNotice').style.display = isAdmin ? 'none' : 'block';
+    if (isAdmin) renderUsers();
+  }
+
   async function initDashboard(){
     try {
       allAssessments = await window.__dashboard.fetchAssessments();
@@ -1107,6 +1184,7 @@
       console.error(err);
       document.getElementById('feedbackBody').innerHTML = `<tr><td colspan="2"><div class="empty-state">Could not load feedback.</div></td></tr>`;
     }
+    applyRoleGate();
   }
 </script>
 </body>
