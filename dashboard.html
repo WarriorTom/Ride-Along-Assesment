@@ -544,11 +544,11 @@
             <thead>
               <tr>
                 <th>Date</th><th>Trainee</th><th>Site</th><th>Trainer</th>
-                <th>Training</th><th>Driving</th><th>Overall</th><th>Total</th><th>Suitable</th>
+                <th>Training</th><th>Driving</th><th>Overall</th><th>Total</th>
               </tr>
             </thead>
             <tbody id="assessmentsBody">
-              <tr><td colspan="9" class="loading-row">Loading assessments...</td></tr>
+              <tr><td colspan="8" class="loading-row">Loading assessments...</td></tr>
             </tbody>
           </table>
         </div>
@@ -844,13 +844,13 @@
     const rated = (a.coverage || []).filter(c => c.answer === 'Yes' && c.rating);
     if (!rated.length) return null;
     const avg = rated.reduce((s,c) => s + c.rating, 0) / rated.length;
-    return +(avg / 12 * 5).toFixed(1);
+    return +(avg / 4 * 5).toFixed(1);
   }
   function drivingScore(a){
     const vals = ['confidence','safety','reversing','spatial'].map(k => a.drivingAbility?.[k]).filter(v => v != null);
     if (!vals.length) return null;
     const avg = vals.reduce((s,v) => s+v, 0) / vals.length;
-    return +(avg / 12 * 5).toFixed(1);
+    return +(avg / 4 * 5).toFixed(1);
   }
   function overallScore(a){
     return a.overallFeedback?.rating ? +(a.overallFeedback.rating).toFixed(1) : null;
@@ -876,7 +876,7 @@
 
     const body = document.getElementById('assessmentsBody');
     if (filtered.length === 0) {
-      body.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-state-title">No assessments found</div>Submitted ride-along reports will appear here.</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-state-title">No assessments found</div>Submitted ride-along reports will appear here.</div></td></tr>`;
       return;
     }
 
@@ -890,7 +890,6 @@
         <td>${fmtScore(drivingScore(a))}</td>
         <td>${fmtScore(overallScore(a))}</td>
         <td><strong>${fmtScore(totalScore(a))}</strong></td>
-        <td><span class="badge ${a.suitableForRole === 'Yes' ? 'badge-yes' : 'badge-no'}">${a.suitableForRole || '—'}</span></td>
       </tr>
     `).join('');
 
@@ -903,7 +902,7 @@
     const coverageRows = (a.coverage || []).map(c => `
       <div class="detail-row">
         <div class="detail-row-label">${c.title}</div>
-        <div class="detail-row-value">${c.answer || '—'}${c.rating ? ' · ' + c.rating + '/12' : ''}</div>
+        <div class="detail-row-value">${c.answer || '—'}${c.rating ? ' · ' + c.rating + '/4' : ''}</div>
       </div>
     `).join('');
 
@@ -919,17 +918,15 @@
       ${coverageRows || '<div class="detail-row-label">No data</div>'}
       <div class="detail-section-title">Driving Assessment</div>
       <div class="detail-row"><div class="detail-row-label">Driven before</div><div class="detail-row-value">${a.drivingAbility?.drivenBefore || '—'}</div></div>
-      <div class="detail-row"><div class="detail-row-label">Confidence</div><div class="detail-row-value">${a.drivingAbility?.confidence ?? '—'}/12</div></div>
-      <div class="detail-row"><div class="detail-row-label">Safety</div><div class="detail-row-value">${a.drivingAbility?.safety ?? '—'}/12</div></div>
-      <div class="detail-row"><div class="detail-row-label">Reversing</div><div class="detail-row-value">${a.drivingAbility?.reversing ?? '—'}/12</div></div>
-      <div class="detail-row"><div class="detail-row-label">Spatial awareness</div><div class="detail-row-value">${a.drivingAbility?.spatial ?? '—'}/12</div></div>
+      ${a.drivingAbility?.drivenBeforeDetails ? `<div class="detail-text-block">${a.drivingAbility.drivenBeforeDetails}</div>` : ''}
+      <div class="detail-row"><div class="detail-row-label">Confidence</div><div class="detail-row-value">${a.drivingAbility?.confidence ?? '—'}/4</div></div>
+      <div class="detail-row"><div class="detail-row-label">Safety</div><div class="detail-row-value">${a.drivingAbility?.safety ?? '—'}/4</div></div>
+      <div class="detail-row"><div class="detail-row-label">Reversing</div><div class="detail-row-value">${a.drivingAbility?.reversing ?? '—'}/4</div></div>
+      <div class="detail-row"><div class="detail-row-label">Spatial awareness</div><div class="detail-row-value">${a.drivingAbility?.spatial ?? '—'}/4</div></div>
       ${a.drivingAbility?.concerns ? `<div class="detail-text-block">${a.drivingAbility.concerns}</div>` : ''}
       <div class="detail-section-title">Overall Feedback</div>
       <div class="detail-row"><div class="detail-row-label">Rating</div><div class="detail-row-value">${a.overallFeedback?.rating ?? '—'}/5</div></div>
       ${a.overallFeedback?.text ? `<div class="detail-text-block">${a.overallFeedback.text}</div>` : ''}
-      <div class="detail-row"><div class="detail-row-label">Suitable for role</div><div class="detail-row-value">${a.suitableForRole || '—'}</div></div>
-      ${a.notSuitableReason ? `<div class="detail-text-block">${a.notSuitableReason}</div>` : ''}
-      <div class="detail-row"><div class="detail-row-label">Further training needed</div><div class="detail-row-value">${a.furtherTrainingNeeded || '—'}</div></div>
       ${a.furtherTrainingReason ? `<div class="detail-text-block">${a.furtherTrainingReason}</div>` : ''}
     `;
     document.getElementById('detailOverlay').classList.add('open');
@@ -1178,7 +1175,7 @@
       renderAssessments();
     } catch (err) {
       console.error(err);
-      document.getElementById('assessmentsBody').innerHTML = `<tr><td colspan="9"><div class="empty-state">Could not load assessments.</div></td></tr>`;
+      document.getElementById('assessmentsBody').innerHTML = `<tr><td colspan="8"><div class="empty-state">Could not load assessments.</div></td></tr>`;
     }
     try {
       const feedbackItems = await window.__dashboard.fetchFeedback();
