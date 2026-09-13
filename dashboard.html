@@ -1140,7 +1140,10 @@
         <tr>
           <td>${u.email || '—'}</td>
           <td>${u.role === 'admin' ? '<span class="badge badge-yes">Admin</span>' : '<span class="badge" style="background:rgba(15,23,42,0.06); color:var(--muted);">User</span>'}</td>
-          <td><button class="settings-btn" style="padding:6px 12px; font-size:11px;" data-uid="${u.uid}" data-role="${u.role === 'admin' ? 'user' : 'admin'}">${u.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button></td>
+          <td>${u.protected
+            ? '<span class="badge" style="background:rgba(15,23,42,0.06); color:var(--muted);">Protected</span>'
+            : `<button class="settings-btn" style="padding:6px 12px; font-size:11px;" data-uid="${u.uid}" data-role="${u.role === 'admin' ? 'user' : 'admin'}">${u.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button>`
+          }</td>
         </tr>
       `).join('');
       body.querySelectorAll('button[data-uid]').forEach(btn => {
