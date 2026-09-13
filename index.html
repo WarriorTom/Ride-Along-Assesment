@@ -6,6 +6,7 @@
 <title>WarriorOPS — Ride Along Assesment</title>
 <meta name="theme-color" content="#f5f7fa">
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -849,9 +850,19 @@
 </div>
 
 <script>
-  // PIN for accessing the app. TODO: once the dashboard is built, add a
-  // proper "change PIN" function there instead of editing this directly.
-  const PIN_CODE = '1066';
+  // PIN for accessing the app. Falls back to this default if Firestore is
+  // unreachable; the dashboard's "Change PIN" writes to settings/pin.
+  let PIN_CODE = '1066';
+  (function loadPinFromFirestore(attemptsLeft){
+    if (window.__firestoreGetPin) {
+      window.__firestoreGetPin().then(code => {
+        if (code) PIN_CODE = code;
+      }).catch(err => console.warn('Could not load PIN from Firestore, using default', err));
+    } else if (attemptsLeft > 0) {
+      // the Firebase module script loads deferred and may not be ready yet
+      setTimeout(() => loadPinFromFirestore(attemptsLeft - 1), 100);
+    }
+  })(20);
   let enteredPin = '';
   const pinDotsEls = document.querySelectorAll('#pinDots .pin-dot');
   const pinErrorEl = document.getElementById('pinError');
@@ -1055,7 +1066,7 @@
     </div>
     <div class="qsubtext" style="margin-bottom:12px;">Report any bugs, confusing sections, errors or ideas for improvement. Feedback is sent directly to the person responsible for building and improving the app.</div>
     <textarea id="feedbackModalText" placeholder="Type your feedback here..."></textarea>
-    <button class="send-btn" id="submitFeedbackBtn" style="margin-top:12px;" disabled>Submit Feedback</button>
+    <button class="send-btn" id="submitFeedbackBtn" style="margin-top:12px;">Submit Feedback</button>
     <div class="status-msg" id="feedbackStatusMsg"></div>
   </div>
 </div>
@@ -1065,7 +1076,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDHKHNZT2NEhmIwcaKrEtKmu2_apD3dKYQ",
@@ -1082,6 +1093,13 @@
   // expose to the main (non-module) script below
   window.__firestoreSave = async (reportData) => {
     await addDoc(collection(db, "reports"), { ...reportData, savedAt: serverTimestamp() });
+  };
+  window.__firestoreSaveFeedback = async (feedbackData) => {
+    await addDoc(collection(db, "feedback"), { ...feedbackData, savedAt: serverTimestamp() });
+  };
+  window.__firestoreGetPin = async () => {
+    const snap = await getDoc(doc(db, "settings", "pin"));
+    return snap.exists() ? snap.data().code : null;
   };
 </script>
 <script>
@@ -1673,7 +1691,7 @@ feedbackModalOverlay.addEventListener('click', (e) => {
   if (e.target === feedbackModalOverlay) closeFeedbackModal();
 });
 
-submitFeedbackBtn.addEventListener('click', () => {
+submitFeedbackBtn.addEventListener('click', async () => {
   const message = feedbackModalText.value.trim();
   if (!message) {
     feedbackStatusMsg.textContent = 'Please write some feedback before sending.';
@@ -1684,17 +1702,20 @@ submitFeedbackBtn.addEventListener('click', () => {
   submitFeedbackBtn.disabled = true;
   submitFeedbackBtn.textContent = 'Sending...';
 
-  // TODO: wire this up to actually email the feedback (EmailJS or similar) once the
-  // service/template is ready. For now this just simulates the send so the flow
-  // and design can be reviewed.
-  setTimeout(() => {
+  try {
+    await window.__firestoreSaveFeedback({ message });
     feedbackStatusMsg.textContent = 'Thanks — your feedback has been sent!';
     feedbackStatusMsg.className = 'status-msg success';
     feedbackModalText.value = '';
+    setTimeout(closeFeedbackModal, 1200);
+  } catch (err) {
+    console.error(err);
+    feedbackStatusMsg.textContent = 'Something went wrong sending your feedback. Please try again.';
+    feedbackStatusMsg.className = 'status-msg error';
+  } finally {
     submitFeedbackBtn.disabled = false;
     submitFeedbackBtn.textContent = 'Submit Feedback';
-    setTimeout(closeFeedbackModal, 1200);
-  }, 600);
+  }
 });
 
 function buildReportData(){
