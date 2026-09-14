@@ -90,6 +90,7 @@
     pointer-events:none;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   html,body{margin:0;padding:0;background:var(--bg); overflow-x:hidden;}
   body{
     font-family:'Poppins',sans-serif;
@@ -248,7 +249,7 @@
     border-radius:var(--radius-card);
     color:#000;
     font-family:'Poppins',sans-serif;
-    font-size:14px;
+    font-size:16px;
     padding:12px;
     resize:vertical;
     outline:none;
@@ -662,7 +663,7 @@
     border-radius:var(--radius-card);
     color:var(--text);
     font-family:'Poppins',sans-serif;
-    font-size:14px;
+    font-size:16px;
     padding:12px;
     resize:vertical;
     outline:none;
@@ -719,26 +720,19 @@
     align-items:center;
     justify-content:center;
     padding:24px;
+    overflow-y:auto;
     transition:opacity 0.5s ease;
   }
   #pinScreen.hide{
     opacity:0;
     pointer-events:none;
   }
-  .pin-logo{
-    font-family:'Anton',sans-serif;
-    font-size:32px;
-    letter-spacing:0.5px;
-    margin-bottom:6px;
-  }
-  .pin-logo span:first-child{ color:var(--accent); }
-  .pin-logo span:last-child{ color:#fff; }
   .pin-kicker{
     font-size:11px;
     letter-spacing:4px;
     color:#71717a;
     font-weight:700;
-    margin-bottom:40px;
+    margin-bottom:36px;
   }
   .pin-dots{
     display:flex;
@@ -804,7 +798,6 @@
     box-shadow:0 4px 14px rgba(204,0,0,0.35);
   }
   .enter-btn:disabled{ opacity:0.4; }
-
   .pin-error{
     color:var(--accent);
     font-size:12px;
@@ -875,11 +868,23 @@
     document.getElementById('pinEnterBtn').disabled = enteredPin.length !== 4;
   }
 
+  function resetViewportZoom(){
+    // iOS Safari can hold onto a zoomed viewport when a full-screen overlay is
+    // dismissed. Briefly re-writing the viewport tag forces it back to 1:1.
+    const vp = document.querySelector('meta[name="viewport"]');
+    if (!vp) return;
+    const original = vp.getAttribute('content');
+    vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no');
+    setTimeout(() => { vp.setAttribute('content', original); }, 300);
+  }
+
   function pinSuccess(){
     document.getElementById('pinScreen').classList.add('hide');
     setTimeout(() => {
       document.getElementById('pinScreen').style.display = 'none';
       document.getElementById('appRoot').style.display = 'block';
+      window.scrollTo(0, 0);
+      resetViewportZoom();
     }, 500);
   }
 
