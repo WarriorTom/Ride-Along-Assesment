@@ -325,6 +325,18 @@
   }
   .badge-yes{ background:rgba(31,146,84,0.12); color:var(--green); }
   .badge-no{ background:rgba(204,0,0,0.1); color:var(--accent); }
+  .row-delete-btn{
+    background:transparent;
+    border:1px solid rgba(204,0,0,0.3);
+    color:var(--accent);
+    font-family:'Poppins',sans-serif;
+    font-size:11px;
+    font-weight:600;
+    padding:6px 12px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .row-delete-btn:hover{ background:rgba(204,0,0,0.08); }
 
   .filter-bar{
     display:flex;
@@ -450,7 +462,11 @@
 </head>
 <body>
 
-<div id="loginScreen">
+<div id="authCheckScreen" style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#0a0a0a; z-index:600;">
+  <div class="login-logo"><span>WARRIOR</span>OPS</div>
+</div>
+
+<div id="loginScreen" style="display:none;">
   <div class="login-card">
     <div class="login-logo"><span>WARRIOR</span>OPS</div>
     <div class="login-kicker">DASHBOARD ACCESS</div>
@@ -521,6 +537,7 @@
             <div class="topbar-user-role">Manager</div>
           </div>
         </div>
+        <button type="button" id="signOutBtn" style="background:transparent; border:1px solid var(--card-border); color:var(--muted); font-family:'Poppins',sans-serif; font-size:12px; font-weight:600; padding:8px 14px; border-radius:8px; cursor:pointer;">Sign Out</button>
       </div>
     </div>
 
@@ -593,11 +610,11 @@
             <thead>
               <tr>
                 <th>Date</th><th>Trainee</th><th>Site</th><th>Trainer</th>
-                <th>Training</th><th>Driving</th><th>Overall</th><th>Total</th>
+                <th>Training</th><th>Driving</th><th>Overall</th><th>Total</th><th></th>
               </tr>
             </thead>
             <tbody id="assessmentsBody">
-              <tr><td colspan="8" class="loading-row">Loading assessments...</td></tr>
+              <tr><td colspan="9" class="loading-row">Loading assessments...</td></tr>
             </tbody>
           </table>
         </div>
@@ -745,8 +762,8 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-  import { getFirestore, collection, getDocs, doc, getDoc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+  import { getFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut, sendPasswordResetEmail, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDHKHNZT2NEhmIwcaKrEtKmu2_apD3dKYQ",
@@ -759,6 +776,7 @@
   const firebaseApp = initializeApp(firebaseConfig);
   const db = getFirestore(firebaseApp);
   const auth = getAuth(firebaseApp);
+  setPersistence(auth, browserLocalPersistence).catch(err => console.warn('Could not set auth persistence', err));
 
   // A second, separate app instance is used purely for creating new user
   // accounts from Settings. Firebase signs you in as whichever user you just
@@ -788,6 +806,9 @@
     const q = query(collection(db, "feedback"), orderBy("savedAt", "desc"));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+  async function deleteAssessment(id){
+    await deleteDoc(doc(db, "reports", id));
   }
 
   // ---------- Dashboard account auth ----------
@@ -819,6 +840,31 @@
     await sendPasswordResetEmail(auth, email);
   }
 
+  async function signOutUser(){
+    await signOut(auth);
+  }
+
+  // Checks whether Firebase already has a signed-in session (persisted from a
+  // previous visit) so the login screen can be skipped on refresh. Resolves
+  // once, on the first auth-state result.
+  function checkExistingSession(){
+    return new Promise((resolve) => {
+      const unsub = onAuthStateChanged(auth, async (user) => {
+        unsub();
+        if (!user) { resolve({ loggedIn: false }); return; }
+        try {
+          const userSnap = await getDoc(doc(db, "users", user.uid));
+          const data = userSnap.exists() ? userSnap.data() : {};
+          currentUserRole = data.role || 'user';
+          resolve({ loggedIn: true, mustChangePassword: !!data.mustChangePassword });
+        } catch (err) {
+          console.error('Session check failed:', err);
+          resolve({ loggedIn: false });
+        }
+      });
+    });
+  }
+
   async function fetchUsers(){
     const snap = await getDocs(collection(db, "users"));
     return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
@@ -829,13 +875,52 @@
   }
 
   window.__dashboard = {
-    loadPin, savePin, fetchAssessments, fetchFeedback, getCurrentPin: () => currentPin,
+    loadPin, savePin, fetchAssessments, fetchFeedback, deleteAssessment, getCurrentPin: () => currentPin,
     loginWithEmail, completeFirstLogin, grantAccess, fetchUsers, setUserRole, sendResetEmail,
-    getCurrentUserRole: () => currentUserRole
+    signOutUser, getCurrentUserRole: () => currentUserRole
   };
+
+  // Kick off the session check as soon as this module is ready, and hand the
+  // result to the classic script below via a custom event (the classic
+  // script's listener is registered first, since module scripts execute
+  // after the document has been parsed).
+  checkExistingSession().then(result => {
+    window.dispatchEvent(new CustomEvent('warriorops:sessionchecked', { detail: result }));
+  });
 </script>
 
 <script>
+  // ---------- Session check (persisted login) ----------
+  window.addEventListener('warriorops:sessionchecked', (e) => {
+    document.getElementById('authCheckScreen').style.display = 'none';
+    const { loggedIn, mustChangePassword } = e.detail;
+    if (loggedIn) {
+      if (mustChangePassword) {
+        document.getElementById('setPasswordScreen').classList.add('active');
+      } else {
+        enterDashboard();
+      }
+    } else {
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+  });
+
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('signOutBtn');
+    btn.disabled = true;
+    try {
+      await window.__dashboard.signOutUser();
+    } catch (err) {
+      console.error(err);
+    }
+    document.getElementById('appShell').classList.remove('active');
+    document.getElementById('loginEmailInput').value = '';
+    document.getElementById('loginPasswordInput').value = '';
+    loginError.textContent = '';
+    document.getElementById('loginScreen').style.display = 'flex';
+    btn.disabled = false;
+  });
+
   // ---------- Login ----------
   const loginEmailInput = document.getElementById('loginEmailInput');
   const loginPasswordInput = document.getElementById('loginPasswordInput');
@@ -1039,6 +1124,7 @@
   function renderAssessments(){
     const site = document.getElementById('filterSite').value;
     const search = document.getElementById('filterSearch').value.toLowerCase();
+    const isAdmin = window.__dashboard.getCurrentUserRole() === 'admin';
     const filtered = allAssessments.filter(a => {
       if (site && a.site !== site) return false;
       if (search && !(`${a.trainer} ${a.trainee}`.toLowerCase().includes(search))) return false;
@@ -1047,7 +1133,7 @@
 
     const body = document.getElementById('assessmentsBody');
     if (filtered.length === 0) {
-      body.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-state-title">No assessments found</div>Submitted ride-along reports will appear here.</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-state-title">No assessments found</div>Submitted ride-along reports will appear here.</div></td></tr>`;
       return;
     }
 
@@ -1061,15 +1147,41 @@
         <td>${fmtScore(drivingScore(a))}</td>
         <td>${fmtScore(overallScore(a))}</td>
         <td><strong>${fmtScore(totalScore(a))}</strong></td>
+        <td>${isAdmin ? `<button type="button" class="row-delete-btn" data-id="${a.id}" title="Delete assessment">Delete</button>` : ''}</td>
       </tr>
     `).join('');
 
     body.querySelectorAll('tr[data-idx]').forEach(row => {
       row.addEventListener('click', () => openDetail(allAssessments[row.dataset.idx]));
     });
+    body.querySelectorAll('.row-delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        confirmAndDelete(btn.dataset.id);
+      });
+    });
+  }
+
+  async function confirmAndDelete(id){
+    const a = allAssessments.find(x => x.id === id);
+    if (!a) return;
+    const label = a.trainee || 'this assessment';
+    if (!confirm(`Delete the ride-along assessment for ${label} (${a.date || 'no date'})? This cannot be undone.`)) return;
+    try {
+      await window.__dashboard.deleteAssessment(id);
+      allAssessments = allAssessments.filter(x => x.id !== id);
+      closeDetail();
+      renderAssessments();
+      try { renderOverview(); } catch (err) { console.error('Overview render failed:', err); }
+      try { renderAlerts(); } catch (err) { console.error('Alerts render failed:', err); }
+    } catch (err) {
+      console.error(err);
+      alert('Could not delete this assessment. Please try again.');
+    }
   }
 
   function openDetail(a){
+    const isAdmin = window.__dashboard.getCurrentUserRole() === 'admin';
     const coverageRows = (a.coverage || []).map(c => `
       <div class="detail-row">
         <div class="detail-row-label">${c.title}</div>
@@ -1083,7 +1195,10 @@
           <div class="detail-title">${a.trainee || 'Unknown trainee'}</div>
           <div class="detail-meta">${a.date || ''} · ${a.site || ''} · Day ${a.day || '—'} · Trainer: ${a.trainer || '—'}</div>
         </div>
-        <div class="detail-close" id="detailCloseBtn">&times;</div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          ${isAdmin ? `<button type="button" id="detailDeleteBtn" class="row-delete-btn">Delete</button>` : ''}
+          <div class="detail-close" id="detailCloseBtn">&times;</div>
+        </div>
       </div>
       <div class="detail-section-title">Training Modules</div>
       ${coverageRows || '<div class="detail-row-label">No data</div>'}
@@ -1102,6 +1217,9 @@
     `;
     document.getElementById('detailOverlay').classList.add('open');
     document.getElementById('detailCloseBtn').addEventListener('click', closeDetail);
+    if (isAdmin) {
+      document.getElementById('detailDeleteBtn').addEventListener('click', () => confirmAndDelete(a.id));
+    }
   }
   function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
   document.getElementById('detailOverlay').addEventListener('click', (e) => {
@@ -1434,7 +1552,7 @@
       allAssessments = await window.__dashboard.fetchAssessments();
     } catch (err) {
       console.error('Could not fetch assessments:', err);
-      document.getElementById('assessmentsBody').innerHTML = `<tr><td colspan="8"><div class="empty-state">Could not load assessments.</div></td></tr>`;
+      document.getElementById('assessmentsBody').innerHTML = `<tr><td colspan="9"><div class="empty-state">Could not load assessments.</div></td></tr>`;
       allAssessments = [];
     }
     // rendered separately so a failure in one view can't blank the others
