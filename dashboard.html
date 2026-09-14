@@ -33,7 +33,7 @@
   }
 
   /* ---------- Login gate ---------- */
-  #loginScreen, #setPasswordScreen{
+  #loginScreen, #setPasswordScreen, #resetScreen{
     position:fixed; inset:0;
     display:flex; align-items:center; justify-content:center;
     background:var(--sidebar-bg);
@@ -41,6 +41,38 @@
   }
   #setPasswordScreen{ display:none; }
   #setPasswordScreen.active{ display:flex; }
+  #resetScreen{ display:none; }
+  #resetScreen.active{ display:flex; }
+  .pw-wrap{ position:relative; }
+  .pw-toggle{
+    position:absolute;
+    right:10px;
+    top:50%;
+    transform:translateY(-50%);
+    background:transparent;
+    border:none;
+    color:#8a8a8a;
+    font-family:'Poppins',sans-serif;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    padding:4px 6px;
+  }
+  .pw-toggle:hover{ color:#fff; }
+  .link-btn{
+    display:block;
+    width:100%;
+    background:transparent;
+    border:none;
+    color:#8a8a8a;
+    font-family:'Poppins',sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:14px;
+    padding:4px;
+  }
+  .link-btn:hover{ color:#fff; }
   .login-text-input{
     width:100%;
     background:#1c1c1c;
@@ -425,9 +457,26 @@
     <label class="settings-label" style="text-align:left;">Email</label>
     <input type="email" class="login-text-input" id="loginEmailInput" placeholder="you@warriorlogistics.co.uk" autofocus>
     <label class="settings-label" style="text-align:left;">Password</label>
-    <input type="password" class="login-text-input" id="loginPasswordInput" placeholder="Password">
-    <button class="login-btn" id="loginBtn">Sign In</button>
+    <div class="pw-wrap">
+      <input type="password" class="login-text-input" id="loginPasswordInput" placeholder="Password" style="margin-bottom:0; padding-right:60px;">
+      <button type="button" class="pw-toggle" id="loginPwToggle">SHOW</button>
+    </div>
+    <button class="login-btn" id="loginBtn" style="margin-top:14px;">Sign In</button>
+    <button type="button" class="link-btn" id="forgotPwBtn">FORGOT PASSWORD?</button>
     <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div id="resetScreen">
+  <div class="login-card">
+    <div class="login-logo"><span>WARRIOR</span>OPS</div>
+    <div class="login-kicker">RESET PASSWORD</div>
+    <div style="font-size:12px; color:#8a8a8a; margin-bottom:18px; line-height:1.6;">Enter your email and we'll send you a link to set a new password.</div>
+    <label class="settings-label" style="text-align:left;">Email</label>
+    <input type="email" class="login-text-input" id="resetEmailInput" placeholder="you@warriorlogistics.co.uk">
+    <button class="login-btn" id="sendResetBtn">Send Reset Link</button>
+    <button type="button" class="link-btn" id="backToLoginBtn">Back to sign in</button>
+    <div class="login-error" id="resetMsg"></div>
   </div>
 </div>
 
@@ -667,7 +716,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
   import { getFirestore, collection, getDocs, doc, getDoc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDHKHNZT2NEhmIwcaKrEtKmu2_apD3dKYQ",
@@ -736,6 +785,10 @@
     await signOut(secondaryAuth);
   }
 
+  async function sendResetEmail(email){
+    await sendPasswordResetEmail(auth, email);
+  }
+
   async function fetchUsers(){
     const snap = await getDocs(collection(db, "users"));
     return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
@@ -747,7 +800,7 @@
 
   window.__dashboard = {
     loadPin, savePin, fetchAssessments, fetchFeedback, getCurrentPin: () => currentPin,
-    loginWithEmail, completeFirstLogin, grantAccess, fetchUsers, setUserRole,
+    loginWithEmail, completeFirstLogin, grantAccess, fetchUsers, setUserRole, sendResetEmail,
     getCurrentUserRole: () => currentUserRole
   };
 </script>
@@ -799,6 +852,57 @@
   loginBtn.addEventListener('click', attemptLogin);
   loginPasswordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
 
+  // ---------- Show / hide password ----------
+  document.getElementById('loginPwToggle').addEventListener('click', () => {
+    const input = document.getElementById('loginPasswordInput');
+    const btn = document.getElementById('loginPwToggle');
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    btn.textContent = showing ? 'SHOW' : 'HIDE';
+  });
+
+  // ---------- Forgot password ----------
+  const resetScreen = document.getElementById('resetScreen');
+  const resetMsg = document.getElementById('resetMsg');
+
+  document.getElementById('forgotPwBtn').addEventListener('click', () => {
+    document.getElementById('resetEmailInput').value = loginEmailInput.value.trim();
+    resetMsg.textContent = '';
+    resetMsg.style.color = '';
+    document.getElementById('loginScreen').style.display = 'none';
+    resetScreen.classList.add('active');
+  });
+
+  document.getElementById('backToLoginBtn').addEventListener('click', () => {
+    resetScreen.classList.remove('active');
+    document.getElementById('loginScreen').style.display = 'flex';
+  });
+
+  document.getElementById('sendResetBtn').addEventListener('click', async () => {
+    const email = document.getElementById('resetEmailInput').value.trim();
+    const btn = document.getElementById('sendResetBtn');
+    if (!email || !email.includes('@')) {
+      resetMsg.style.color = '';
+      resetMsg.textContent = 'ENTER A VALID EMAIL';
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    try {
+      await window.__dashboard.sendResetEmail(email);
+      resetMsg.style.color = '#2fbf71';
+      resetMsg.textContent = 'RESET LINK SENT — CHECK YOUR EMAIL';
+    } catch (err) {
+      console.error(err);
+      // don't reveal whether an account exists for this address
+      resetMsg.style.color = '#2fbf71';
+      resetMsg.textContent = 'RESET LINK SENT — CHECK YOUR EMAIL';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send Reset Link';
+    }
+  });
+
   // ---------- Set password (first login) ----------
   const setPasswordBtn = document.getElementById('setPasswordBtn');
   const setPasswordError = document.getElementById('setPasswordError');
@@ -838,29 +942,46 @@
   });
 
   // ---------- Score helpers ----------
-  // Normalizes our real data (coverage Yes/No + 1-12 ratings, driving 1-12 scores,
-  // overall 1-5 star rating) into comparable /5 scores for the dashboard views.
+  // The app rates coverage and driving on a 1-4 scale (Poor/Fair/Great/Fantastic)
+  // and sends the overall rating as a word. Everything is normalised to /5 here.
+  const RATING_WORDS = { POOR: 1, FAIR: 2, GREAT: 3, FANTASTIC: 4 };
+
+  function toRatingNumber(v){
+    if (v == null) return null;
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    const n = RATING_WORDS[String(v).trim().toUpperCase()];
+    if (n != null) return n;
+    const parsed = parseFloat(v);
+    return isFinite(parsed) ? parsed : null;
+  }
+
   function trainingScore(a){
-    const rated = (a.coverage || []).filter(c => c.answer === 'Yes' && c.rating);
+    const rated = (a.coverage || [])
+      .filter(c => c.answer === 'Yes')
+      .map(c => toRatingNumber(c.rating))
+      .filter(v => v != null);
     if (!rated.length) return null;
-    const avg = rated.reduce((s,c) => s + c.rating, 0) / rated.length;
+    const avg = rated.reduce((s,v) => s + v, 0) / rated.length;
     return +(avg / 4 * 5).toFixed(1);
   }
   function drivingScore(a){
-    const vals = ['confidence','safety','reversing','spatial'].map(k => a.drivingAbility?.[k]).filter(v => v != null);
+    const vals = ['confidence','safety','reversing','spatial']
+      .map(k => toRatingNumber(a.drivingAbility?.[k]))
+      .filter(v => v != null);
     if (!vals.length) return null;
     const avg = vals.reduce((s,v) => s+v, 0) / vals.length;
     return +(avg / 4 * 5).toFixed(1);
   }
   function overallScore(a){
-    return a.overallFeedback?.rating ? +(a.overallFeedback.rating).toFixed(1) : null;
+    const n = toRatingNumber(a.overallFeedback?.rating);
+    return n == null ? null : +(n / 4 * 5).toFixed(1);
   }
   function totalScore(a){
     const parts = [trainingScore(a), drivingScore(a), overallScore(a)].filter(v => v != null);
     if (!parts.length) return null;
     return +(parts.reduce((s,v) => s+v, 0) / parts.length).toFixed(1);
   }
-  function fmtScore(v){ return v == null ? '—' : v.toFixed(1); }
+  function fmtScore(v){ return (v == null || !isFinite(v)) ? '—' : Number(v).toFixed(1); }
 
   // ---------- Assessments ----------
   let allAssessments = [];
@@ -925,7 +1046,7 @@
       <div class="detail-row"><div class="detail-row-label">Spatial awareness</div><div class="detail-row-value">${a.drivingAbility?.spatial ?? '—'}/4</div></div>
       ${a.drivingAbility?.concerns ? `<div class="detail-text-block">${a.drivingAbility.concerns}</div>` : ''}
       <div class="detail-section-title">Overall Feedback</div>
-      <div class="detail-row"><div class="detail-row-label">Rating</div><div class="detail-row-value">${a.overallFeedback?.rating ?? '—'}/5</div></div>
+      <div class="detail-row"><div class="detail-row-label">Rating</div><div class="detail-row-value">${a.overallFeedback?.rating ?? '—'}</div></div>
       ${a.overallFeedback?.text ? `<div class="detail-text-block">${a.overallFeedback.text}</div>` : ''}
       ${a.furtherTrainingReason ? `<div class="detail-text-block">${a.furtherTrainingReason}</div>` : ''}
     `;
@@ -1171,12 +1292,14 @@
   async function initDashboard(){
     try {
       allAssessments = await window.__dashboard.fetchAssessments();
-      renderOverview();
-      renderAssessments();
     } catch (err) {
-      console.error(err);
+      console.error('Could not fetch assessments:', err);
       document.getElementById('assessmentsBody').innerHTML = `<tr><td colspan="8"><div class="empty-state">Could not load assessments.</div></td></tr>`;
+      allAssessments = [];
     }
+    // rendered separately so a failure in one view can't blank the others
+    try { renderOverview(); } catch (err) { console.error('Overview render failed:', err); }
+    try { renderAssessments(); } catch (err) { console.error('Assessments render failed:', err); }
     try {
       const feedbackItems = await window.__dashboard.fetchFeedback();
       renderFeedback(feedbackItems);
