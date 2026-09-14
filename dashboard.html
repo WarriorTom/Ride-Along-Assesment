@@ -504,7 +504,7 @@
     <div class="nav-item" data-page="trainers">Trainers <span class="nav-soon">SOON</span></div>
     <div class="nav-item" data-page="reports">Reports <span class="nav-soon">SOON</span></div>
     <div class="nav-item" data-page="insights">Insights <span class="nav-soon">SOON</span></div>
-    <div class="nav-item" data-page="alerts">Alerts <span class="nav-soon">SOON</span></div>
+    <div class="nav-item" data-page="alerts">Alerts</div>
     <div class="nav-item" data-page="feedback">Feedback</div>
     <div class="nav-item" data-page="settings">Settings</div>
     <div class="sidebar-footer">Warrior Logistics<br>Version 1.0</div>
@@ -633,10 +633,40 @@
         </div>
       </div>
       <div class="page" id="page-alerts">
-        <div class="soon-wrap">
-          <div class="soon-badge">COMING SOON</div>
-          <div class="soon-title">Alerts & Actions</div>
-          <div class="soon-text">Drivers and assessments that need follow-up, low scores, or are overdue for reassessment.</div>
+        <div class="page-header">
+          <div>
+            <div class="page-title">Alerts & Actions</div>
+            <div class="page-subtitle">Assessments and sites that need a closer look.</div>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">Flagged Assessments</div>
+            <div class="stat-value" id="alertStatFlagged">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Driving Concerns</div>
+            <div class="stat-value" id="alertStatConcerns">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Low Scores</div>
+            <div class="stat-value" id="alertStatLowScore">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Sites Overdue</div>
+            <div class="stat-value" id="alertStatOverdue">—</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Site Status</div>
+          <div id="overdueSitesWrap"></div>
+        </div>
+        <div class="panel" style="padding:0;">
+          <div class="panel-title" style="padding:20px 20px 0;">Flagged Assessments</div>
+          <table>
+            <thead><tr><th>Date</th><th>Trainee</th><th>Site</th><th>Trainer</th><th>Reasons</th><th>Score</th></tr></thead>
+            <tbody id="alertsBody"><tr><td colspan="6" class="loading-row">Loading...</td></tr></tbody>
+          </table>
         </div>
       </div>
 
@@ -983,6 +1013,26 @@
   }
   function fmtScore(v){ return (v == null || !isFinite(v)) ? '—' : Number(v).toFixed(1); }
 
+  const SITES = ['DLS4', 'DXS1', 'DXG2', 'HSA7'];
+
+  function parseAssessmentDate(a){
+    if (a.date) {
+      const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(a.date).trim());
+      if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+    }
+    if (a.savedAt) {
+      if (typeof a.savedAt.toDate === 'function') return a.savedAt.toDate();
+      if (a.savedAt.seconds) return new Date(a.savedAt.seconds * 1000);
+    }
+    return null;
+  }
+
+  function fmtDate(d){
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function titleCase(w){ return w.charAt(0) + w.slice(1).toLowerCase(); }
+
   // ---------- Assessments ----------
   let allAssessments = [];
 
@@ -1157,6 +1207,96 @@
     }
   }
 
+  // ---------- Alerts ----------
+  function computeAlerts(){
+    const flagged = allAssessments.map(a => {
+      const reasons = [];
+      const dScore = drivingScore(a);
+      const tScore = totalScore(a);
+      const overallWord = (a.overallFeedback?.rating || '').toString().toUpperCase();
+      if (overallWord === 'POOR' || overallWord === 'FAIR') {
+        reasons.push({ label: 'Overall: ' + titleCase(overallWord), severity: 'high' });
+      }
+      if (dScore != null && dScore < 3) {
+        reasons.push({ label: 'Low driving score (' + dScore.toFixed(1) + '/5)', severity: 'high' });
+      }
+      const concernsText = (a.drivingAbility?.concerns || '').trim();
+      if (concernsText) {
+        reasons.push({ label: 'Driving concerns noted', severity: 'high' });
+      }
+      const gapCount = (a.coverage || []).filter(c => c.answer === 'No').length;
+      if (gapCount >= 3) {
+        reasons.push({ label: gapCount + ' training gaps', severity: 'medium' });
+      }
+      if (!reasons.length && tScore != null && tScore < 3) {
+        reasons.push({ label: 'Low total score (' + tScore.toFixed(1) + '/5)', severity: 'medium' });
+      }
+      return { a, reasons };
+    }).filter(x => x.reasons.length > 0);
+
+    flagged.sort((x, y) => (parseAssessmentDate(y.a) || 0) - (parseAssessmentDate(x.a) || 0));
+    return flagged;
+  }
+
+  function computeSiteStatus(){
+    return SITES.map(site => {
+      const dates = allAssessments.filter(a => a.site === site).map(parseAssessmentDate).filter(Boolean);
+      if (!dates.length) return { site, last: null, daysSince: null, overdue: true };
+      const last = new Date(Math.max(...dates.map(d => d.getTime())));
+      const daysSince = Math.floor((Date.now() - last.getTime()) / 86400000);
+      return { site, last, daysSince, overdue: daysSince > 14 };
+    });
+  }
+
+  function renderAlerts(){
+    const flagged = computeAlerts();
+    const siteStatus = computeSiteStatus();
+
+    document.getElementById('alertStatFlagged').textContent = flagged.length;
+    document.getElementById('alertStatConcerns').textContent =
+      flagged.filter(f => f.reasons.some(r => r.label === 'Driving concerns noted')).length;
+    document.getElementById('alertStatLowScore').textContent =
+      flagged.filter(f => f.reasons.some(r => r.label.startsWith('Low'))).length;
+    document.getElementById('alertStatOverdue').textContent = siteStatus.filter(s => s.overdue).length;
+
+    document.getElementById('overdueSitesWrap').innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        ${siteStatus.map(s => `
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border:1px solid var(--card-border); border-radius:8px;">
+            <div>
+              <div style="font-weight:600; font-size:13.5px;">${s.site}</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px;">${s.last ? 'Last ride-along: ' + fmtDate(s.last) : 'No assessments yet'}</div>
+            </div>
+            <span class="badge ${s.overdue ? 'badge-no' : 'badge-yes'}">${s.last ? (s.overdue ? s.daysSince + ' days ago' : 'Up to date') : 'Never assessed'}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    const body = document.getElementById('alertsBody');
+    if (!flagged.length) {
+      body.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-state-title">Nothing flagged</div>All recent assessments are within normal range.</div></td></tr>`;
+      return;
+    }
+    body.innerHTML = flagged.map(f => `
+      <tr data-idx="${allAssessments.indexOf(f.a)}">
+        <td>${f.a.date || '—'}</td>
+        <td>${f.a.trainee || '—'}</td>
+        <td>${f.a.site || '—'}</td>
+        <td>${f.a.trainer || '—'}</td>
+        <td>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            ${f.reasons.map(r => `<span class="badge" style="background:${r.severity === 'high' ? 'rgba(204,0,0,0.1)' : 'rgba(199,138,31,0.12)'}; color:${r.severity === 'high' ? 'var(--accent)' : 'var(--amber)'};">${r.label}</span>`).join('')}
+          </div>
+        </td>
+        <td><strong>${fmtScore(totalScore(f.a))}</strong></td>
+      </tr>
+    `).join('');
+    body.querySelectorAll('tr[data-idx]').forEach(row => {
+      row.addEventListener('click', () => openDetail(allAssessments[row.dataset.idx]));
+    });
+  }
+
   // ---------- Feedback ----------
   function renderFeedback(items){
     const body = document.getElementById('feedbackBody');
@@ -1300,6 +1440,7 @@
     // rendered separately so a failure in one view can't blank the others
     try { renderOverview(); } catch (err) { console.error('Overview render failed:', err); }
     try { renderAssessments(); } catch (err) { console.error('Assessments render failed:', err); }
+    try { renderAlerts(); } catch (err) { console.error('Alerts render failed:', err); }
     try {
       const feedbackItems = await window.__dashboard.fetchFeedback();
       renderFeedback(feedbackItems);
